@@ -8,7 +8,7 @@
         Height="700" Width="1100"
         MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen"
-        Background="#D4D0C8">
+        Background="#BABEc2">
 
     <Window.Resources>
         <!-- Bool → Visibility 変換 -->
@@ -18,9 +18,9 @@
         <!-- CentreCOM テーマ: Button (明るい筐体に馴染むパーツ風) -->
         <!-- ============================================================ -->
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#C0BCB4"/>
+            <Setter Property="Background" Value="#989DA1"/>
             <Setter Property="Foreground" Value="#222222"/>
-            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12,4"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
@@ -40,16 +40,16 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#D0CCC4"/>
+                                <Setter TargetName="border" Property="Background" Value="#AAAEB3"/>
                                 <Setter TargetName="border" Property="BorderBrush" Value="#4CAF50"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#AAA69E"/>
+                                <Setter TargetName="border" Property="Background" Value="#84898E"/>
                                 <Setter TargetName="border" Property="BorderBrush" Value="#388E3C"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#CCCAC4"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#B0ADA6"/>
+                                <Setter TargetName="border" Property="Background" Value="#B2B6BA"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#94989C"/>
                                 <Setter Property="Foreground" Value="#999999"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -64,7 +64,7 @@
         <Style TargetType="TextBox">
             <Setter Property="Background" Value="White"/>
             <Setter Property="Foreground" Value="#222222"/>
-            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CaretBrush" Value="Black"/>
             <Setter Property="SelectionBrush" Value="#4CAF50"/>
@@ -76,15 +76,15 @@
         <!-- CentreCOM テーマ: TextBlock (デフォルト) -->
         <!-- ============================================================ -->
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Foreground" Value="#2C2C2C"/>
         </Style>
 
         <!-- ============================================================ -->
         <!-- CentreCOM テーマ: GroupBox -->
         <!-- ============================================================ -->
         <Style TargetType="GroupBox">
-            <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="Foreground" Value="#2C2C2C"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8"/>
             <Setter Property="Margin" Value="0,0,0,8"/>
@@ -94,21 +94,21 @@
         <!-- CentreCOM テーマ: DataGrid -->
         <!-- ============================================================ -->
         <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="#ECEAE4"/>
+            <Setter Property="Background" Value="#E1E4E7"/>
             <Setter Property="Foreground" Value="#222222"/>
-            <Setter Property="BorderBrush" Value="#8E8B82"/>
-            <Setter Property="RowBackground" Value="#F5F4F0"/>
-            <Setter Property="AlternatingRowBackground" Value="#ECEAE4"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#C8C4BC"/>
-            <Setter Property="VerticalGridLinesBrush" Value="#C8C4BC"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
+            <Setter Property="RowBackground" Value="#EDEEEF"/>
+            <Setter Property="AlternatingRowBackground" Value="#E1E4E7"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#A4A8AD"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#A4A8AD"/>
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
         </Style>
 
         <!-- DataGrid ColumnHeader -->
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#B8B4AC"/>
+            <Setter Property="Background" Value="#A0A6AB"/>
             <Setter Property="Foreground" Value="#222222"/>
-            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="Padding" Value="8,6"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -118,7 +118,7 @@
         <!-- DataGrid Cell -->
         <Style TargetType="DataGridCell">
             <Setter Property="Foreground" Value="#222222"/>
-            <Setter Property="BorderBrush" Value="#C8C4BC"/>
+            <Setter Property="BorderBrush" Value="#A4A8AD"/>
             <Setter Property="BorderThickness" Value="0,0,0,0"/>
             <Setter Property="Padding" Value="4,2"/>
             <Style.Triggers>
@@ -134,9 +134,9 @@
         <!-- CentreCOM テーマ: ProgressBar (ネットワーク風グリーン) -->
         <!-- ============================================================ -->
         <Style TargetType="ProgressBar">
-            <Setter Property="Background" Value="#C8C4BC"/>
+            <Setter Property="Background" Value="#A4A8AD"/>
             <Setter Property="Foreground" Value="#4CAF50"/>
-            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
 
@@ -282,7 +282,7 @@
                                     <MultiTrigger.Conditions>
                                         <Condition Property="IsMouseOver" Value="True"/>
                                     </MultiTrigger.Conditions>
-                                    <Setter Property="Background" Value="#DDD9D0"/>
+                                    <Setter Property="Background" Value="#D2D4D9"/>
                                 </MultiTrigger>
                             </Style.Triggers>
                         </Style>
@@ -354,14 +354,14 @@
                               Width="5"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Stretch"
-                              Background="#B8B4AC"
+                              Background="#A0A6AB"
                               Visibility="{Binding HasPreview, Converter={StaticResource BoolToVis}}"/>
 
                 <!-- プレビューパネル (右, SelectedPc != null 時のみ表示) -->
                 <Border Grid.Column="2"
-                        BorderBrush="#8E8B82"
+                        BorderBrush="#757B82"
                         BorderThickness="1,0,0,0"
-                        Background="#E8E6E0"
+                        Background="#D2D6DB"
                         Visibility="{Binding HasPreview, Converter={StaticResource BoolToVis}}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,8">
                         <StackPanel>
@@ -379,10 +379,10 @@
                             <!-- セクション: キャプチャプレビュー -->
                             <TextBlock Text="AUTO CAPTURE"
                                        FontSize="10" FontWeight="Bold"
-                                       Foreground="#8E8B82"
+                                       Foreground="#757B82"
                                        Margin="0,0,0,4"/>
-                            <Border BorderBrush="#8E8B82" BorderThickness="1"
-                                    Background="#333333" MinHeight="180"
+                            <Border BorderBrush="#757B82" BorderThickness="1"
+                                    Background="#2C2C2C" MinHeight="180"
                                     Margin="0,0,0,4">
                                 <Grid>
                                     <!-- 画像あり -->
@@ -439,7 +439,7 @@
                             <!-- セクション: エビデンス詳細 -->
                             <TextBlock Text="EVIDENCE DETAILS"
                                        FontSize="10" FontWeight="Bold"
-                                       Foreground="#8E8B82"
+                                       Foreground="#757B82"
                                        Margin="0,0,0,6"/>
 
                             <!-- MAC (有線) -->
@@ -483,7 +483,7 @@
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Text" Value="{Binding ChecklistFileName}"/>
-                                            <Setter Property="Foreground" Value="#333333"/>
+                                            <Setter Property="Foreground" Value="#2C2C2C"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ChecklistFileName}" Value="{x:Null}">
                                                     <Setter Property="Text" Value="未検出"/>
@@ -531,7 +531,7 @@
         <!-- ================================================================ -->
         <Border Grid.Row="4"
                 Background="#4A4A4A"
-                BorderBrush="#8E8B82"
+                BorderBrush="#757B82"
                 BorderThickness="0,1,0,0"
                 Padding="12,6">
             <Grid>
