@@ -17,13 +17,6 @@ namespace FabriqEvidenceManager.Services;
 /// </summary>
 public sealed class EvidenceDiscoveryService : IEvidenceDiscoveryService
 {
-    // evidence 直下のサブディレクトリ名 (固定)
-    private const string DirAutoCapture = "auto_capture";
-    private const string DirBitLocker = "bitlocker";
-    private const string DirPcInformation = "pc_information";
-    private const string DirChecklist = "checklist";
-    private const string DirExportHistory = "export_history";
-
     public Task<IReadOnlyList<PcEvidence>> DiscoverAsync(
         string evidenceRootPath,
         CancellationToken cancellationToken = default)
@@ -36,33 +29,33 @@ public sealed class EvidenceDiscoveryService : IEvidenceDiscoveryService
 
         // ----- pc_information (最も情報が豊富なため最初に走査) -----
         ScanSubDirectories(
-            Path.Combine(evidenceRootPath, DirPcInformation),
+            Path.Combine(evidenceRootPath, EvidenceConstants.DirPcInformation),
             map,
             (evidence, dirPath) => evidence.PcInformationDirectoryPath = dirPath);
 
         // ----- auto_capture -----
         ScanSubDirectories(
-            Path.Combine(evidenceRootPath, DirAutoCapture),
+            Path.Combine(evidenceRootPath, EvidenceConstants.DirAutoCapture),
             map,
             (evidence, dirPath) => evidence.AutoCaptureDirectoryPath = dirPath);
 
         // ----- bitlocker -----
         ScanSubDirectories(
-            Path.Combine(evidenceRootPath, DirBitLocker),
+            Path.Combine(evidenceRootPath, EvidenceConstants.DirBitLocker),
             map,
             (evidence, dirPath) => evidence.BitLockerDirectoryPath = dirPath);
 
         // ----- checklist (ファイル単位) -----
         ScanFiles(
-            Path.Combine(evidenceRootPath, DirChecklist),
-            "checklist_",
+            Path.Combine(evidenceRootPath, EvidenceConstants.DirChecklist),
+            EvidenceConstants.PrefixChecklist,
             map,
             (evidence, filePath) => evidence.ChecklistFilePath = filePath);
 
         // ----- export_history (ファイル単位) -----
         ScanFiles(
-            Path.Combine(evidenceRootPath, DirExportHistory),
-            "history_export_",
+            Path.Combine(evidenceRootPath, EvidenceConstants.DirExportHistory),
+            EvidenceConstants.PrefixExportHistory,
             map,
             (evidence, filePath) => evidence.ExportHistoryFilePath = filePath);
 

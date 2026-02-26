@@ -10,6 +10,13 @@ namespace FabriqEvidenceManager.Services.Interfaces;
 public interface IEvidenceParserService
 {
     /// <summary>
+    /// PcEvidence に紐づく各種ログファイルをパースし、
+    /// シリアルナンバー・MACアドレス・BitLocker回復キーをモデルに充填する。
+    /// </summary>
+    /// <param name="pc">Discovery で構築済みの PcEvidence (パス情報が設定済みであること)</param>
+    void PopulateDetails(PcEvidence pc);
+
+    /// <summary>
     /// 07_SerialNumber.txt からシリアルナンバーを抽出する。
     /// </summary>
     /// <param name="filePath">07_SerialNumber.txt の絶対パス</param>

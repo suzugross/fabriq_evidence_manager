@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ClosedXML.Excel;
+using FabriqEvidenceManager.Helpers;
 using FabriqEvidenceManager.Models;
 using FabriqEvidenceManager.Services.Interfaces;
 
@@ -57,7 +58,7 @@ public sealed class ExcelExportService : IExcelExportService
                            + allDriveLetters.Count * DriveSubColumnCount;
 
         using var workbook = new XLWorkbook();
-        var ws = workbook.Worksheets.Add("PC情報一覧");
+        var ws = workbook.Worksheets.Add(EvidenceConstants.ExcelSheetName);
 
         // ---- ヘッダー行 ----
         WriteHeader(ws, maxNicCount, allDriveLetters);
@@ -181,8 +182,8 @@ public sealed class ExcelExportService : IExcelExportService
         for (var col = 1; col <= totalColumns; col++)
         {
             ws.Column(col).AdjustToContents();
-            if (ws.Column(col).Width > 55)
-                ws.Column(col).Width = 55;
+            if (ws.Column(col).Width > EvidenceConstants.ExcelMaxColumnWidth)
+                ws.Column(col).Width = EvidenceConstants.ExcelMaxColumnWidth;
         }
 
         // ヘッダー行を固定

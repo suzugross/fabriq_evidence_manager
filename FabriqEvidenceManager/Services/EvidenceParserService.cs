@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using FabriqEvidenceManager.Helpers;
 using FabriqEvidenceManager.Models;
 using FabriqEvidenceManager.Services.Interfaces;
 
@@ -32,6 +34,66 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     /// <summary>BitLocker Mount Point: X:</summary>
     [GeneratedRegex(@"Mount Point:\s*([A-Z]):")]
     private static partial Regex BitLockerMountPointPattern();
+
+    // ================================================================
+    // PopulateDetails (ファイルI/Oオーケストレーション)
+    // ================================================================
+
+    /// <inheritdoc />
+    public void PopulateDetails(PcEvidence pc)
+    {
+        // pc_information 配下のログファイルをパース
+        if (pc.PcInformationDirectoryPath is not null)
+        {
+            // シリアルナンバー — 失敗しても空値のまま続行
+            var serialFile = Path.Combine(pc.PcInformationDirectoryPath, EvidenceConstants.FileSerialNumber);
+            if (File.Exists(serialFile))
+            {
+                try
+                {
+                    pc.SerialNumber = ParseSerialNumber(serialFile);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // パース失敗: SerialNumber は初期値 (空文字列) のまま
+                    System.Diagnostics.Debug.WriteLine($"[Parse Skip] {serialFile}: {ex.Message}");
+                }
+            }
+
+            // MACアドレス — 失敗しても空リストのまま続行
+            var macFile = Path.Combine(pc.PcInformationDirectoryPath, EvidenceConstants.FileMacAddress);
+            if (File.Exists(macFile))
+            {
+                try
+                {
+                    foreach (var entry in ParseMacAddresses(macFile))
+                        pc.MacAddresses.Add(entry);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Parse Skip] {macFile}: {ex.Message}");
+                }
+            }
+        }
+
+        // BitLocker 回復キー — 個別ファイルごとにスキップ
+        if (pc.BitLockerDirectoryPath is not null)
+        {
+            foreach (var bkFile in Directory.EnumerateFiles(pc.BitLockerDirectoryPath, "*.txt").OrderBy(f => f))
+            {
+                try
+                {
+                    var entry = ParseBitLockerKey(bkFile);
+                    if (entry is not null)
+                        pc.BitLockerKeys.Add(entry);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Parse Skip] {bkFile}: {ex.Message}");
+                }
+            }
+        }
+    }
 
     // ================================================================
     // シリアルナンバー

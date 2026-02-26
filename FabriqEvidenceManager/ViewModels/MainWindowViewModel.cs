@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FabriqEvidenceManager.Helpers;
 using FabriqEvidenceManager.Models;
 using FabriqEvidenceManager.Services.Interfaces;
 using Microsoft.Win32;
@@ -102,7 +103,7 @@ public partial class MainWindowViewModel : ObservableObject
             // 2. Parse: 各PCのログファイルからデータを抽出
             foreach (var pc in pcList)
             {
-                ParsePcDetails(pc);
+                _parserService.PopulateDetails(pc);
                 TargetPCs.Add(pc);
             }
 
@@ -164,11 +165,8 @@ public partial class MainWindowViewModel : ObservableObject
         if (dialog.ShowDialog() != true)
             return;
 
-        // {YYYY_MM_DD}_fabriq_evi フォルダを作成
-        var now = DateTime.Now;
-        var deliveryDirName = $"{now:yyyy_MM_dd}_fabriq_evi";
-        var deliveryPath = Path.Combine(dialog.FolderName, deliveryDirName);
-        Directory.CreateDirectory(deliveryPath);
+        // 納品用ディレクトリの作成は Service に委譲
+        var deliveryPath = _collectorService.CreateDeliveryDirectory(dialog.FolderName);
 
         IsLoading = true;
 
@@ -183,24 +181,39 @@ public partial class MainWindowViewModel : ObservableObject
                 StatusMessage = $"フォルダ整理中... {current}/{total} 台完了 ({percent}%)";
             });
 
-            await _collectorService.CollectAsync(pcList, deliveryPath, progress, cancellationToken);
+            var copyErrors = await _collectorService.CollectAsync(pcList, deliveryPath, progress, cancellationToken);
 
             // 2. Excel 台帳出力
             StatusMessage = "Excel 台帳を出力中...";
-            var excelFileName = $"{now:yyyy_MM_dd_HHmmss}_PC情報一覧表.xlsx";
+            var excelFileName = $"{DateTime.Now:yyyy_MM_dd_HHmmss}_{EvidenceConstants.ExcelFileNameSuffix}.xlsx";
             var excelPath = Path.Combine(deliveryPath, excelFileName);
 
             await _excelExportService.ExportAsync(pcList, excelPath, cancellationToken);
+
+            // コピー失敗ファイルがあれば警告表示
+            if (copyErrors.Count > 0)
+            {
+                var errorSummary = string.Join("\n", copyErrors.Count <= 10
+                    ? copyErrors
+                    : copyErrors.Take(10).Append($"... 他 {copyErrors.Count - 10} 件"));
+
+                MessageBox.Show(
+                    $"以下のファイルのコピーに失敗しました（スキップ済み）:\n\n{errorSummary}",
+                    "コピー警告",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
 
             StatusMessage = $"出力完了: {deliveryPath}";
             MessageBox.Show(
                 $"納品データを出力しました。\n\n"
                 + $"出力先: {deliveryPath}\n"
                 + $"PC台数: {total} 台\n"
-                + $"Excel:  {excelFileName}",
+                + $"Excel:  {excelFileName}"
+                + (copyErrors.Count > 0 ? $"\n\n※ {copyErrors.Count} 件のファイルコピーに失敗しました。" : ""),
                 "出力完了",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                copyErrors.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
         }
         catch (OperationCanceledException)
         {
@@ -222,41 +235,4 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private bool CanExecuteAction() => !IsLoading && TargetPCs.Count > 0;
-
-    // ================================================================
-    // Private Helpers
-    // ================================================================
-
-    /// <summary>
-    /// 1台分の PcEvidence に対して各ログファイルをパースし、プロパティを埋める。
-    /// </summary>
-    private void ParsePcDetails(PcEvidence pc)
-    {
-        if (pc.PcInformationDirectoryPath is not null)
-        {
-            // シリアルナンバー
-            var serialFile = Path.Combine(pc.PcInformationDirectoryPath, "07_SerialNumber.txt");
-            if (File.Exists(serialFile))
-                pc.SerialNumber = _parserService.ParseSerialNumber(serialFile);
-
-            // MACアドレス
-            var macFile = Path.Combine(pc.PcInformationDirectoryPath, "06_MacAddress.txt");
-            if (File.Exists(macFile))
-            {
-                foreach (var entry in _parserService.ParseMacAddresses(macFile))
-                    pc.MacAddresses.Add(entry);
-            }
-        }
-
-        // BitLocker 回復キー
-        if (pc.BitLockerDirectoryPath is not null)
-        {
-            foreach (var bkFile in Directory.EnumerateFiles(pc.BitLockerDirectoryPath, "*.txt").OrderBy(f => f))
-            {
-                var entry = _parserService.ParseBitLockerKey(bkFile);
-                if (entry is not null)
-                    pc.BitLockerKeys.Add(entry);
-            }
-        }
-    }
 }
