@@ -5,31 +5,208 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Fabriq Evidence Manager"
-        Height="650" Width="1100"
-        MinHeight="450" MinWidth="800"
-        WindowStartupLocation="CenterScreen">
+        Height="700" Width="1100"
+        MinHeight="500" MinWidth="800"
+        WindowStartupLocation="CenterScreen"
+        Background="#D4D0C8">
 
     <Window.Resources>
         <!-- Bool → Visibility 変換 -->
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: Button (明るい筐体に馴染むパーツ風) -->
+        <!-- ============================================================ -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#C0BCB4"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#D0CCC4"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#4CAF50"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#AAA69E"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#388E3C"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#CCCAC4"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#B0ADA6"/>
+                                <Setter Property="Foreground" Value="#999999"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: TextBox -->
+        <!-- ============================================================ -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="Black"/>
+            <Setter Property="SelectionBrush" Value="#4CAF50"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: TextBlock (デフォルト) -->
+        <!-- ============================================================ -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#333333"/>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: GroupBox -->
+        <!-- ============================================================ -->
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: DataGrid -->
+        <!-- ============================================================ -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#ECEAE4"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="RowBackground" Value="#F5F4F0"/>
+            <Setter Property="AlternatingRowBackground" Value="#ECEAE4"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#C8C4BC"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#C8C4BC"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        </Style>
+
+        <!-- DataGrid ColumnHeader -->
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#B8B4AC"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- DataGrid Cell -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#C8C4BC"/>
+            <Setter Property="BorderThickness" Value="0,0,0,0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#4CAF50"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="BorderBrush" Value="#388E3C"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- DataGrid Row -->
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#DDD9D0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: ProgressBar (ネットワーク風グリーン) -->
+        <!-- ============================================================ -->
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="#C8C4BC"/>
+            <Setter Property="Foreground" Value="#4CAF50"/>
+            <Setter Property="BorderBrush" Value="#8E8B82"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
     </Window.Resources>
 
-    <Grid Margin="12">
+    <!-- ================================================================ -->
+    <!-- メインレイアウト -->
+    <!-- ================================================================ -->
+    <Grid>
         <Grid.RowDefinitions>
-            <!-- Row 0: ヘッダー (フォルダ選択) -->
+            <!-- Row 0: ヘッダーバー (ロゴ + 青黄赤ストライプ) -->
             <RowDefinition Height="Auto"/>
-            <!-- Row 1: DataGrid (メインコンテンツ) -->
+            <!-- Row 1: Evidence フォルダ選択 -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 2: DataGrid (メインコンテンツ) -->
             <RowDefinition Height="*"/>
-            <!-- Row 2: アクションボタン -->
+            <!-- Row 3: アクションボタン -->
             <RowDefinition Height="Auto"/>
-            <!-- Row 3: ステータスバー -->
+            <!-- Row 4: ステータスバー -->
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- ================================================================ -->
-        <!-- Row 0: ヘッダー — evidence フォルダ選択 -->
+        <!-- Row 0: ヘッダーバー — ロゴ + CentreCOM 青黄赤ストライプ -->
         <!-- ================================================================ -->
-        <GroupBox Grid.Row="0" Header="Evidence フォルダ" Padding="8" Margin="0,0,0,8">
+        <StackPanel Grid.Row="0" Background="#4A4A4A">
+            <!-- ロゴ / 製品名 -->
+            <Grid Margin="16,10,16,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="FABRIQ"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="  EVIDENCE MANAGER"
+                               FontSize="22" FontWeight="Light"
+                               Foreground="#CCCCCC"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- (右端スペーサー) -->
+            </Grid>
+
+            <!-- Allied Telesis 風 3色ストライプ (青・黄・赤、上から下へ横線3本) -->
+            <StackPanel Orientation="Vertical">
+                <Rectangle Height="2" Fill="#4A90D9" HorizontalAlignment="Stretch"/>
+                <Rectangle Height="2" Fill="#F2C94C" HorizontalAlignment="Stretch"/>
+                <Rectangle Height="2" Fill="#EB5757" HorizontalAlignment="Stretch"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- ================================================================ -->
+        <!-- Row 1: Evidence フォルダ選択 -->
+        <!-- ================================================================ -->
+        <GroupBox Grid.Row="1" Header="Evidence フォルダ" Margin="12,8,12,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -40,28 +217,25 @@
                 <TextBox Grid.Column="0"
                          Text="{Binding EvidenceRootPath, UpdateSourceTrigger=PropertyChanged}"
                          VerticalContentAlignment="Center"
-                         Padding="4,2"
                          IsReadOnly="True"/>
 
                 <Button Grid.Column="1"
                         Content="参照..."
                         Command="{Binding SelectEvidenceFolderCommand}"
-                        Padding="12,4"
                         Margin="6,0,0,0"/>
 
                 <Button Grid.Column="2"
                         Content="読み込み"
                         Command="{Binding LoadEvidenceCommand}"
-                        Padding="12,4"
                         Margin="6,0,0,0"
                         FontWeight="SemiBold"/>
             </Grid>
         </GroupBox>
 
         <!-- ================================================================ -->
-        <!-- Row 1: DataGrid — PC情報一覧 -->
+        <!-- Row 2: DataGrid — PC情報一覧 -->
         <!-- ================================================================ -->
-        <DataGrid Grid.Row="1"
+        <DataGrid Grid.Row="2"
                   ItemsSource="{Binding TargetPCs}"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
@@ -71,20 +245,25 @@
                   SelectionMode="Extended"
                   SelectionUnit="Cell"
                   ClipboardCopyMode="IncludeHeader"
-                  GridLinesVisibility="Horizontal"
-                  AlternatingRowBackground="#F9F9F9"
                   HeadersVisibility="Column"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Auto"
-                  Margin="0,0,0,8">
+                  Margin="12,4,12,4">
 
             <DataGrid.Columns>
                 <!-- PC名 -->
                 <DataGridTextColumn Header="PC名"
                                     Binding="{Binding PcName}"
                                     MinWidth="100"
-                                    Width="SizeToCells"
-                                    FontWeight="SemiBold"/>
+                                    Width="SizeToCells">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Foreground" Value="#222222"/>
+                            <Setter Property="Padding" Value="4,2"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
 
                 <!-- シリアルナンバー -->
                 <DataGridTextColumn Header="シリアル"
@@ -118,41 +297,102 @@
         </DataGrid>
 
         <!-- ================================================================ -->
-        <!-- Row 2: アクションボタン -->
+        <!-- Row 3: アクションボタン -->
         <!-- ================================================================ -->
-        <StackPanel Grid.Row="2"
+        <StackPanel Grid.Row="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
-                    Margin="0,0,0,8">
+                    Margin="12,4,12,4">
 
             <Button Content="納品データ出力"
                     Command="{Binding ExportDeliveryCommand}"
-                    Padding="16,6"
-                    FontWeight="SemiBold"/>
+                    Padding="20,8"
+                    FontWeight="SemiBold"
+                    FontSize="14"/>
         </StackPanel>
 
         <!-- ================================================================ -->
-        <!-- Row 3: ステータスバー + プログレス -->
+        <!-- Row 4: ステータスバー (LED + ProgressBar + Message) -->
         <!-- ================================================================ -->
-        <Grid Grid.Row="3">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+        <Border Grid.Row="4"
+                Background="#4A4A4A"
+                BorderBrush="#8E8B82"
+                BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-            <!-- プログレスバー (読み込み中のみ表示) -->
-            <ProgressBar Grid.Row="0"
-                         IsIndeterminate="True"
-                         Height="3"
-                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
-                         Margin="0,0,0,4"/>
+                <!-- プログレスバー (読み込み中のみ表示) -->
+                <ProgressBar Grid.Row="0"
+                             IsIndeterminate="True"
+                             Height="3"
+                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                             Margin="0,0,0,6"/>
 
-            <!-- ステータスメッセージ -->
-            <TextBlock Grid.Row="1"
-                       Text="{Binding StatusMessage}"
-                       Foreground="#555"
-                       FontSize="12"
-                       Padding="4,2"/>
-        </Grid>
+                <!-- LED + ステータスメッセージ -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LINK/ACT LED インジケータ -->
+                    <Ellipse x:Name="LinkActLed"
+                             Grid.Column="0"
+                             Width="8" Height="8"
+                             Fill="#00FF00"
+                             VerticalAlignment="Center"
+                             Margin="0,0,6,0">
+                        <Ellipse.Effect>
+                            <DropShadowEffect Color="#00FF00"
+                                              BlurRadius="8"
+                                              ShadowDepth="0"
+                                              Opacity="0.7"/>
+                        </Ellipse.Effect>
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard x:Name="LedBlink">
+                                                <Storyboard RepeatBehavior="Forever">
+                                                    <DoubleAnimation
+                                                        Storyboard.TargetProperty="Opacity"
+                                                        From="1.0" To="0.15"
+                                                        Duration="0:0:0.5"
+                                                        AutoReverse="True"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <StopStoryboard BeginStoryboardName="LedBlink"/>
+                                        </DataTrigger.ExitActions>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+
+                    <TextBlock Grid.Column="1"
+                               Text="LINK/ACT"
+                               FontSize="9"
+                               Foreground="#AAAAAA"
+                               VerticalAlignment="Center"
+                               Margin="0,0,16,0"/>
+
+                    <!-- ステータスメッセージ -->
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding StatusMessage}"
+                               FontSize="12"
+                               Foreground="#CCCCCC"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Grid>
+        </Border>
+
     </Grid>
 </Window>
