@@ -93,6 +93,41 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
                 }
             }
         }
+
+        // ---- エビデンス欠損検知 ----
+        ValidateEvidence(pc);
+    }
+
+    /// <summary>
+    /// パース結果を検証し、欠損がある場合は HasWarning / WarningMessage をセットする。
+    /// </summary>
+    private static void ValidateEvidence(PcEvidence pc)
+    {
+        var warnings = new List<string>();
+
+        // MACアドレス欠損
+        if (string.IsNullOrEmpty(pc.EthernetMac))
+            warnings.Add("MACアドレス(有線)欠損");
+        if (string.IsNullOrEmpty(pc.WifiMac))
+            warnings.Add("MACアドレス(Wi-Fi)欠損");
+
+        // BitLocker欠損
+        if (pc.BitLockerKeys.Count == 0)
+            warnings.Add("BitLockerキー未取得");
+
+        // ディレクトリ/ファイル欠損
+        if (pc.PcInformationDirectoryPath is null)
+            warnings.Add("pc_information未検出");
+        if (pc.AutoCaptureDirectoryPath is null)
+            warnings.Add("auto_capture未検出");
+        if (pc.ChecklistFilePath is null)
+            warnings.Add("チェックリスト未検出");
+
+        if (warnings.Count > 0)
+        {
+            pc.HasWarning = true;
+            pc.WarningMessage = string.Join(", ", warnings);
+        }
     }
 
     // ================================================================

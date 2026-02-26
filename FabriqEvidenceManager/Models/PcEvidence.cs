@@ -41,6 +41,14 @@ public sealed class PcEvidence
     /// <summary>export_history ファイルの絶対パス</summary>
     public string? ExportHistoryFilePath { get; set; }
 
+    // ---- エビデンス欠損検知 ----
+
+    /// <summary>何らかの欠損・異常がある場合に true</summary>
+    public bool HasWarning { get; set; }
+
+    /// <summary>欠損項目の詳細メッセージ (カンマ区切り)</summary>
+    public string WarningMessage { get; set; } = string.Empty;
+
     // ---- DataGrid 表示用の算出プロパティ ----
 
     /// <summary>イーサネットのMACアドレス (未検出時は空文字列)</summary>

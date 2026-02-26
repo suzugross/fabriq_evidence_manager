@@ -130,16 +130,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- DataGrid Row -->
-        <Style TargetType="DataGridRow">
-            <Setter Property="Background" Value="Transparent"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#DDD9D0"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
         <!-- ============================================================ -->
         <!-- CentreCOM テーマ: ProgressBar (ネットワーク風グリーン) -->
         <!-- ============================================================ -->
@@ -250,6 +240,24 @@
                   HorizontalScrollBarVisibility="Auto"
                   Margin="12,4,12,4">
 
+            <!-- 警告行ハイライト (HasWarning=True → 薄い赤背景) -->
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasWarning}" Value="True">
+                            <Setter Property="Background" Value="#FFCDD2"/>
+                        </DataTrigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True"/>
+                            </MultiTrigger.Conditions>
+                            <Setter Property="Background" Value="#DDD9D0"/>
+                        </MultiTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+
             <DataGrid.Columns>
                 <!-- PC名 -->
                 <DataGridTextColumn Header="PC名"
@@ -292,7 +300,22 @@
                 <!-- 検出状況 -->
                 <DataGridTextColumn Header="検出エビデンス"
                                     Binding="{Binding DetectedItems}"
-                                    Width="*"/>
+                                    MinWidth="120"
+                                    Width="SizeToCells"/>
+
+                <!-- ステータス (警告メッセージ) -->
+                <DataGridTextColumn Header="ステータス"
+                                    Binding="{Binding WarningMessage}"
+                                    Width="*">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="#C62828"/>
+                            <Setter Property="Padding" Value="4,2"/>
+                            <Setter Property="TextWrapping" Value="NoWrap"/>
+                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
 
