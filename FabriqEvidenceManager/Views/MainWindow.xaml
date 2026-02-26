@@ -223,101 +223,293 @@
         </GroupBox>
 
         <!-- ================================================================ -->
-        <!-- Row 2: DataGrid — PC情報一覧 -->
+        <!-- Row 2: 検索バー + DataGrid — PC情報一覧 -->
         <!-- ================================================================ -->
-        <DataGrid Grid.Row="2"
-                  ItemsSource="{Binding TargetPCs}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  CanUserReorderColumns="False"
-                  SelectionMode="Extended"
-                  SelectionUnit="Cell"
-                  ClipboardCopyMode="IncludeHeader"
-                  HeadersVisibility="Column"
-                  VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Auto"
-                  Margin="12,4,12,4">
+        <DockPanel Grid.Row="2" Margin="12,4,12,4">
 
-            <!-- 警告行ハイライト (HasWarning=True → 薄い赤背景) -->
-            <DataGrid.RowStyle>
-                <Style TargetType="DataGridRow">
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding HasWarning}" Value="True">
-                            <Setter Property="Background" Value="#FFCDD2"/>
-                        </DataTrigger>
-                        <MultiTrigger>
-                            <MultiTrigger.Conditions>
-                                <Condition Property="IsMouseOver" Value="True"/>
-                            </MultiTrigger.Conditions>
-                            <Setter Property="Background" Value="#DDD9D0"/>
-                        </MultiTrigger>
-                    </Style.Triggers>
-                </Style>
-            </DataGrid.RowStyle>
+            <!-- 検索ボックス (上部に固定) -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
 
-            <DataGrid.Columns>
-                <!-- PC名 -->
-                <DataGridTextColumn Header="PC名"
-                                    Binding="{Binding PcName}"
-                                    MinWidth="100"
-                                    Width="SizeToCells">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="FontWeight" Value="SemiBold"/>
-                            <Setter Property="Foreground" Value="#222222"/>
-                            <Setter Property="Padding" Value="4,2"/>
+                <TextBlock Grid.Column="0"
+                           Text="FILTER:"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="#555555"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"/>
+
+                <TextBox Grid.Column="1"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalContentAlignment="Center"/>
+            </Grid>
+
+            <!-- DataGrid + GridSplitter + Preview Panel -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="300"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="400" MinWidth="250"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- DataGrid (左) -->
+                <DataGrid Grid.Column="0"
+                      ItemsSource="{Binding TargetPCsView}"
+                      SelectedItem="{Binding SelectedPc}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      CanUserReorderColumns="False"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      ClipboardCopyMode="IncludeHeader"
+                      HeadersVisibility="Column"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto">
+
+                    <!-- 警告行ハイライト (HasWarning=True → 薄い赤背景) -->
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasWarning}" Value="True">
+                                    <Setter Property="Background" Value="#FFCDD2"/>
+                                </DataTrigger>
+                                <MultiTrigger>
+                                    <MultiTrigger.Conditions>
+                                        <Condition Property="IsMouseOver" Value="True"/>
+                                    </MultiTrigger.Conditions>
+                                    <Setter Property="Background" Value="#DDD9D0"/>
+                                </MultiTrigger>
+                            </Style.Triggers>
                         </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
+                    </DataGrid.RowStyle>
 
-                <!-- シリアルナンバー -->
-                <DataGridTextColumn Header="シリアル"
-                                    Binding="{Binding SerialNumber}"
-                                    MinWidth="120"
-                                    Width="SizeToCells"/>
+                    <DataGrid.Columns>
+                        <!-- PC名 -->
+                        <DataGridTextColumn Header="PC名"
+                                            Binding="{Binding PcName}"
+                                            MinWidth="100"
+                                            Width="SizeToCells">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#222222"/>
+                                    <Setter Property="Padding" Value="4,2"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
 
-                <!-- イーサネットMAC -->
-                <DataGridTextColumn Header="MAC (イーサネット)"
-                                    Binding="{Binding EthernetMac}"
-                                    MinWidth="140"
-                                    Width="SizeToCells"/>
+                        <!-- シリアルナンバー -->
+                        <DataGridTextColumn Header="シリアル"
+                                            Binding="{Binding SerialNumber}"
+                                            MinWidth="120"
+                                            Width="SizeToCells"/>
 
-                <!-- Wi-Fi MAC -->
-                <DataGridTextColumn Header="MAC (Wi-Fi)"
-                                    Binding="{Binding WifiMac}"
-                                    MinWidth="140"
-                                    Width="SizeToCells"/>
+                        <!-- イーサネットMAC -->
+                        <DataGridTextColumn Header="MAC (イーサネット)"
+                                            Binding="{Binding EthernetMac}"
+                                            MinWidth="140"
+                                            Width="SizeToCells"/>
 
-                <!-- BitLocker ドライブ -->
-                <DataGridTextColumn Header="BitLocker"
-                                    Binding="{Binding BitLockerDrives}"
-                                    MinWidth="70"
-                                    Width="SizeToCells"/>
+                        <!-- Wi-Fi MAC -->
+                        <DataGridTextColumn Header="MAC (Wi-Fi)"
+                                            Binding="{Binding WifiMac}"
+                                            MinWidth="140"
+                                            Width="SizeToCells"/>
 
-                <!-- 検出状況 -->
-                <DataGridTextColumn Header="検出エビデンス"
-                                    Binding="{Binding DetectedItems}"
-                                    MinWidth="120"
-                                    Width="SizeToCells"/>
+                        <!-- BitLocker ドライブ -->
+                        <DataGridTextColumn Header="BitLocker"
+                                            Binding="{Binding BitLockerDrives}"
+                                            MinWidth="70"
+                                            Width="SizeToCells"/>
 
-                <!-- ステータス (警告メッセージ) -->
-                <DataGridTextColumn Header="ステータス"
-                                    Binding="{Binding WarningMessage}"
-                                    Width="*">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Foreground" Value="#C62828"/>
-                            <Setter Property="Padding" Value="4,2"/>
-                            <Setter Property="TextWrapping" Value="NoWrap"/>
-                            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-            </DataGrid.Columns>
-        </DataGrid>
+                        <!-- 検出状況 -->
+                        <DataGridTextColumn Header="検出エビデンス"
+                                            Binding="{Binding DetectedItems}"
+                                            MinWidth="120"
+                                            Width="SizeToCells"/>
+
+                        <!-- ステータス (警告メッセージ) -->
+                        <DataGridTextColumn Header="ステータス"
+                                            Binding="{Binding WarningMessage}"
+                                            Width="*">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#C62828"/>
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Setter Property="TextWrapping" Value="NoWrap"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- GridSplitter (ドラッグでプレビュー幅を調整) -->
+                <GridSplitter Grid.Column="1"
+                              Width="5"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Stretch"
+                              Background="#B8B4AC"
+                              Visibility="{Binding HasPreview, Converter={StaticResource BoolToVis}}"/>
+
+                <!-- プレビューパネル (右, SelectedPc != null 時のみ表示) -->
+                <Border Grid.Column="2"
+                        BorderBrush="#8E8B82"
+                        BorderThickness="1,0,0,0"
+                        Background="#E8E6E0"
+                        Visibility="{Binding HasPreview, Converter={StaticResource BoolToVis}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,8">
+                        <StackPanel>
+
+                            <!-- PC名ヘッダー -->
+                            <TextBlock Text="{Binding SelectedPc.PcName}"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="#222222"
+                                       Margin="0,0,0,2"/>
+                            <TextBlock Text="{Binding SelectedPc.SerialNumber}"
+                                       FontSize="12"
+                                       Foreground="#666666"
+                                       Margin="0,0,0,10"/>
+
+                            <!-- セクション: キャプチャプレビュー -->
+                            <TextBlock Text="AUTO CAPTURE"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#8E8B82"
+                                       Margin="0,0,0,4"/>
+                            <Border BorderBrush="#8E8B82" BorderThickness="1"
+                                    Background="#333333" MinHeight="180"
+                                    Margin="0,0,0,4">
+                                <Grid>
+                                    <!-- 画像あり -->
+                                    <Image Source="{Binding CurrentPreviewImagePath}"
+                                           Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <!-- 画像なし時のプレースホルダ -->
+                                    <TextBlock Text="No Image"
+                                               FontSize="14"
+                                               Foreground="#777777"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CurrentPreviewImagePath}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </Border>
+
+                            <!-- ナビゲーション (前へ / カウンター / 次へ) -->
+                            <Grid Margin="0,0,0,12"
+                                  Visibility="{Binding HasMultipleImages, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="0"
+                                        Content="&lt; 前へ"
+                                        Command="{Binding PreviousPreviewImageCommand}"
+                                        Padding="10,3" FontSize="11"/>
+
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding PreviewCounterText}"
+                                           FontSize="11"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Foreground="#555555"/>
+
+                                <Button Grid.Column="2"
+                                        Content="次へ &gt;"
+                                        Command="{Binding NextPreviewImageCommand}"
+                                        Padding="10,3" FontSize="11"/>
+                            </Grid>
+
+                            <!-- セクション: エビデンス詳細 -->
+                            <TextBlock Text="EVIDENCE DETAILS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#8E8B82"
+                                       Margin="0,0,0,6"/>
+
+                            <!-- MAC (有線) -->
+                            <Grid Margin="0,0,0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="有線 MAC:" FontSize="11" Foreground="#666666"/>
+                                <TextBlock Grid.Column="1" Text="{Binding SelectedPc.EthernetMac}" FontSize="11" FontFamily="Consolas"/>
+                            </Grid>
+
+                            <!-- MAC (Wi-Fi) -->
+                            <Grid Margin="0,0,0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Wi-Fi MAC:" FontSize="11" Foreground="#666666"/>
+                                <TextBlock Grid.Column="1" Text="{Binding SelectedPc.WifiMac}" FontSize="11" FontFamily="Consolas"/>
+                            </Grid>
+
+                            <!-- BitLocker -->
+                            <Grid Margin="0,0,0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="BitLocker:" FontSize="11" Foreground="#666666"/>
+                                <TextBlock Grid.Column="1" Text="{Binding SelectedPc.BitLockerDrives}" FontSize="11"/>
+                            </Grid>
+
+                            <!-- チェックリスト -->
+                            <Grid Margin="0,0,0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Checklist:" FontSize="11" Foreground="#666666"/>
+                                <TextBlock Grid.Column="1" FontSize="11">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="{Binding ChecklistFileName}"/>
+                                            <Setter Property="Foreground" Value="#333333"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ChecklistFileName}" Value="{x:Null}">
+                                                    <Setter Property="Text" Value="未検出"/>
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <!-- 警告メッセージ -->
+                            <Border Margin="0,10,0,0" Padding="8,6"
+                                    Background="#FFF3E0" BorderBrush="#E65100" BorderThickness="1"
+                                    Visibility="{Binding SelectedPc.HasWarning, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding SelectedPc.WarningMessage}"
+                                           FontSize="11" Foreground="#E65100"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+        </DockPanel>
 
         <!-- ================================================================ -->
         <!-- Row 3: アクションボタン -->

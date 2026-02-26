@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FabriqEvidenceManager.Helpers;
@@ -98,6 +100,9 @@ public sealed class EvidenceCollectorService : IEvidenceCollectorService
                     }
                 }
 
+                // SHA-256 マニフェスト生成
+                GenerateManifest(pcDir, errors, cancellationToken);
+
                 // 進捗報告 (0〜100)
                 var percent = (int)((i + 1) / (double)pcEvidences.Count * 100);
                 progress?.Report(percent);
@@ -105,6 +110,51 @@ public sealed class EvidenceCollectorService : IEvidenceCollectorService
         }, cancellationToken);
 
         return errors;
+    }
+
+    private const string ManifestFileName = "manifest_sha256.txt";
+
+    /// <summary>
+    /// 指定ディレクトリ内の全ファイルの SHA-256 ハッシュ値を計算し、
+    /// manifest_sha256.txt として保存する。manifest 自身は除外する。
+    /// </summary>
+    private static void GenerateManifest(string directoryPath, List<string> errors, CancellationToken cancellationToken)
+    {
+        var manifestPath = Path.Combine(directoryPath, ManifestFileName);
+        var sb = new StringBuilder();
+
+        foreach (var filePath in Directory.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // manifest 自身は除外
+            if (string.Equals(Path.GetFileName(filePath), ManifestFileName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var relativePath = Path.GetRelativePath(directoryPath, filePath);
+
+            try
+            {
+                using var stream = File.OpenRead(filePath);
+                var hashBytes = SHA256.HashData(stream);
+                var hashHex = Convert.ToHexString(hashBytes).ToLowerInvariant();
+                sb.AppendLine($"{hashHex}  {relativePath}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                sb.AppendLine($"[ERROR: {ex.Message}]  {relativePath}");
+                errors.Add($"{filePath}: マニフェスト生成失敗 - {ex.Message}");
+            }
+        }
+
+        try
+        {
+            File.WriteAllText(manifestPath, sb.ToString(), Encoding.UTF8);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            errors.Add($"{manifestPath}: マニフェスト書き込み失敗 - {ex.Message}");
+        }
     }
 
     /// <summary>

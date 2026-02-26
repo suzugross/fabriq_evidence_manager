@@ -1,10 +1,12 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FabriqEvidenceManager.Helpers;
@@ -36,6 +38,9 @@ public partial class MainWindowViewModel : ObservableObject
         _parserService = parserService;
         _collectorService = collectorService;
         _excelExportService = excelExportService;
+
+        TargetPCsView = CollectionViewSource.GetDefaultView(TargetPCs);
+        TargetPCsView.Filter = FilterPcEvidence;
     }
 
     // ================================================================
@@ -49,6 +54,64 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>抽出されたPC情報のリスト</summary>
     public ObservableCollection<PcEvidence> TargetPCs { get; } = [];
+
+    /// <summary>フィルタリング対応の CollectionView</summary>
+    public ICollectionView TargetPCsView { get; }
+
+    /// <summary>検索テキスト (リアルタイムフィルタリング用)</summary>
+    [ObservableProperty]
+    private string _searchText = string.Empty;
+
+    partial void OnSearchTextChanged(string value)
+    {
+        TargetPCsView.Refresh();
+    }
+
+    /// <summary>DataGrid で選択中のPC</summary>
+    [ObservableProperty]
+    private PcEvidence? _selectedPc;
+
+    partial void OnSelectedPcChanged(PcEvidence? value)
+    {
+        UpdatePreviewInfo(value);
+    }
+
+    /// <summary>選択PCの全キャプチャ画像パス一覧</summary>
+    public ObservableCollection<string> PreviewImagePaths { get; } = [];
+
+    /// <summary>現在表示中の画像インデックス</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(NextPreviewImageCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PreviousPreviewImageCommand))]
+    private int _currentPreviewIndex;
+
+    partial void OnCurrentPreviewIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(CurrentPreviewImagePath));
+        OnPropertyChanged(nameof(PreviewCounterText));
+    }
+
+    /// <summary>現在表示すべき画像パス</summary>
+    public string? CurrentPreviewImagePath =>
+        PreviewImagePaths.Count > 0 && CurrentPreviewIndex >= 0 && CurrentPreviewIndex < PreviewImagePaths.Count
+            ? PreviewImagePaths[CurrentPreviewIndex]
+            : null;
+
+    /// <summary>ページカウンター表示 (例: "3 / 10")</summary>
+    public string PreviewCounterText =>
+        PreviewImagePaths.Count > 0
+            ? $"{CurrentPreviewIndex + 1} / {PreviewImagePaths.Count}"
+            : "0 / 0";
+
+    /// <summary>複数画像があるか</summary>
+    public bool HasMultipleImages => PreviewImagePaths.Count > 1;
+
+    /// <summary>チェックリストファイル名 (存在しない場合は null)</summary>
+    [ObservableProperty]
+    private string? _checklistFileName;
+
+    /// <summary>プレビューパネルの表示フラグ</summary>
+    public bool HasPreview => SelectedPc is not null;
 
     /// <summary>処理中フラグ (プログレスバー表示、ボタン無効化に使用)</summary>
     [ObservableProperty]
@@ -235,4 +298,75 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private bool CanExecuteAction() => !IsLoading && TargetPCs.Count > 0;
+
+    /// <summary>次の画像へ進む。</summary>
+    [RelayCommand(CanExecute = nameof(CanGoNext))]
+    private void NextPreviewImage() => CurrentPreviewIndex++;
+
+    private bool CanGoNext() => CurrentPreviewIndex < PreviewImagePaths.Count - 1;
+
+    /// <summary>前の画像へ戻る。</summary>
+    [RelayCommand(CanExecute = nameof(CanGoPrevious))]
+    private void PreviousPreviewImage() => CurrentPreviewIndex--;
+
+    private bool CanGoPrevious() => CurrentPreviewIndex > 0;
+
+    private static readonly string[] ImageExtensions = [".png", ".jpg", ".jpeg", ".bmp", ".gif"];
+
+    /// <summary>選択PCのプレビュー情報を更新する。</summary>
+    private void UpdatePreviewInfo(PcEvidence? pc)
+    {
+        OnPropertyChanged(nameof(HasPreview));
+
+        PreviewImagePaths.Clear();
+        CurrentPreviewIndex = 0;
+
+        if (pc is null)
+        {
+            ChecklistFileName = null;
+            OnPropertyChanged(nameof(CurrentPreviewImagePath));
+            OnPropertyChanged(nameof(PreviewCounterText));
+            OnPropertyChanged(nameof(HasMultipleImages));
+            return;
+        }
+
+        // auto_capture 内の全画像を収集 (名前順)
+        if (pc.AutoCaptureDirectoryPath is not null && Directory.Exists(pc.AutoCaptureDirectoryPath))
+        {
+            foreach (var path in Directory.EnumerateFiles(pc.AutoCaptureDirectoryPath)
+                         .Where(f => ImageExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                         .OrderBy(f => f))
+            {
+                PreviewImagePaths.Add(path);
+            }
+        }
+
+        OnPropertyChanged(nameof(CurrentPreviewImagePath));
+        OnPropertyChanged(nameof(PreviewCounterText));
+        OnPropertyChanged(nameof(HasMultipleImages));
+
+        // PreviewImagePaths 変更後にナビゲーションコマンドの CanExecute を再評価
+        NextPreviewImageCommand.NotifyCanExecuteChanged();
+        PreviousPreviewImageCommand.NotifyCanExecuteChanged();
+
+        // チェックリストファイル名
+        ChecklistFileName = pc.ChecklistFilePath is not null && File.Exists(pc.ChecklistFilePath)
+            ? Path.GetFileName(pc.ChecklistFilePath)
+            : null;
+    }
+
+    /// <summary>SearchText による OR フィルタ (PC名, シリアル, 警告メッセージ)</summary>
+    private bool FilterPcEvidence(object obj)
+    {
+        if (string.IsNullOrWhiteSpace(SearchText))
+            return true;
+
+        if (obj is not PcEvidence pc)
+            return false;
+
+        var keyword = SearchText.Trim();
+        return pc.PcName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || pc.SerialNumber.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || pc.WarningMessage.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+    }
 }
