@@ -1,0 +1,158 @@
+<Window x:Class="FabriqEvidenceManager.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Fabriq Evidence Manager"
+        Height="650" Width="1100"
+        MinHeight="450" MinWidth="800"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <!-- Bool → Visibility 変換 -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <!-- Row 0: ヘッダー (フォルダ選択) -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 1: DataGrid (メインコンテンツ) -->
+            <RowDefinition Height="*"/>
+            <!-- Row 2: アクションボタン -->
+            <RowDefinition Height="Auto"/>
+            <!-- Row 3: ステータスバー -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ================================================================ -->
+        <!-- Row 0: ヘッダー — evidence フォルダ選択 -->
+        <!-- ================================================================ -->
+        <GroupBox Grid.Row="0" Header="Evidence フォルダ" Padding="8" Margin="0,0,0,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBox Grid.Column="0"
+                         Text="{Binding EvidenceRootPath, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalContentAlignment="Center"
+                         Padding="4,2"
+                         IsReadOnly="True"/>
+
+                <Button Grid.Column="1"
+                        Content="参照..."
+                        Command="{Binding SelectEvidenceFolderCommand}"
+                        Padding="12,4"
+                        Margin="6,0,0,0"/>
+
+                <Button Grid.Column="2"
+                        Content="読み込み"
+                        Command="{Binding LoadEvidenceCommand}"
+                        Padding="12,4"
+                        Margin="6,0,0,0"
+                        FontWeight="SemiBold"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- ================================================================ -->
+        <!-- Row 1: DataGrid — PC情報一覧 -->
+        <!-- ================================================================ -->
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding TargetPCs}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserReorderColumns="False"
+                  SelectionMode="Extended"
+                  SelectionUnit="Cell"
+                  ClipboardCopyMode="IncludeHeader"
+                  GridLinesVisibility="Horizontal"
+                  AlternatingRowBackground="#F9F9F9"
+                  HeadersVisibility="Column"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Auto"
+                  Margin="0,0,0,8">
+
+            <DataGrid.Columns>
+                <!-- PC名 -->
+                <DataGridTextColumn Header="PC名"
+                                    Binding="{Binding PcName}"
+                                    MinWidth="100"
+                                    Width="SizeToCells"
+                                    FontWeight="SemiBold"/>
+
+                <!-- シリアルナンバー -->
+                <DataGridTextColumn Header="シリアル"
+                                    Binding="{Binding SerialNumber}"
+                                    MinWidth="120"
+                                    Width="SizeToCells"/>
+
+                <!-- イーサネットMAC -->
+                <DataGridTextColumn Header="MAC (イーサネット)"
+                                    Binding="{Binding EthernetMac}"
+                                    MinWidth="140"
+                                    Width="SizeToCells"/>
+
+                <!-- Wi-Fi MAC -->
+                <DataGridTextColumn Header="MAC (Wi-Fi)"
+                                    Binding="{Binding WifiMac}"
+                                    MinWidth="140"
+                                    Width="SizeToCells"/>
+
+                <!-- BitLocker ドライブ -->
+                <DataGridTextColumn Header="BitLocker"
+                                    Binding="{Binding BitLockerDrives}"
+                                    MinWidth="70"
+                                    Width="SizeToCells"/>
+
+                <!-- 検出状況 -->
+                <DataGridTextColumn Header="検出エビデンス"
+                                    Binding="{Binding DetectedItems}"
+                                    Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- ================================================================ -->
+        <!-- Row 2: アクションボタン -->
+        <!-- ================================================================ -->
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,0,0,8">
+
+            <Button Content="納品データ出力"
+                    Command="{Binding ExportDeliveryCommand}"
+                    Padding="16,6"
+                    FontWeight="SemiBold"/>
+        </StackPanel>
+
+        <!-- ================================================================ -->
+        <!-- Row 3: ステータスバー + プログレス -->
+        <!-- ================================================================ -->
+        <Grid Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- プログレスバー (読み込み中のみ表示) -->
+            <ProgressBar Grid.Row="0"
+                         IsIndeterminate="True"
+                         Height="3"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"
+                         Margin="0,0,0,4"/>
+
+            <!-- ステータスメッセージ -->
+            <TextBlock Grid.Row="1"
+                       Text="{Binding StatusMessage}"
+                       Foreground="#555"
+                       FontSize="12"
+                       Padding="4,2"/>
+        </Grid>
+    </Grid>
+</Window>
