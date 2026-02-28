@@ -42,3 +42,9 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# ============================================
+# Project-local files (not part of source)
+# ============================================
+PC情報抽出ツール.ipynb
+設計案.txt
