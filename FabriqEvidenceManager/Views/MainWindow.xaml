@@ -203,6 +203,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- モード切替 -->
@@ -229,6 +230,15 @@
                         Command="{Binding LoadEvidenceCommand}"
                         Margin="6,0,0,0"
                         FontWeight="SemiBold"/>
+
+                <!-- 自動更新トグル -->
+                <CheckBox Grid.Column="4"
+                          Content="自動更新 (30秒)"
+                          IsChecked="{Binding IsAutoReloadEnabled}"
+                          VerticalAlignment="Center"
+                          Foreground="#2C2C2C"
+                          FontSize="11"
+                          Margin="10,0,0,0"/>
             </Grid>
         </GroupBox>
 
@@ -242,6 +252,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
@@ -254,6 +265,13 @@
                 <TextBox Grid.Column="1"
                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                          VerticalContentAlignment="Center"/>
+
+                <TextBlock Grid.Column="2"
+                           Text="{Binding DisplayCountText}"
+                           FontSize="11" FontWeight="SemiBold"
+                           Foreground="#555555"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"/>
             </Grid>
 
             <!-- DataGrid + GridSplitter + Preview Panel -->
@@ -317,6 +335,12 @@
                         <DataGridTextColumn Header="シリアル"
                                             Binding="{Binding SerialNumber}"
                                             MinWidth="120"
+                                            Width="SizeToCells"/>
+
+                        <!-- 収集日 -->
+                        <DataGridTextColumn Header="収集日"
+                                            Binding="{Binding CollectionDate}"
+                                            MinWidth="90"
                                             Width="SizeToCells"/>
 
                         <!-- イーサネットMAC -->

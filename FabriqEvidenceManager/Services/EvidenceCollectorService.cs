@@ -56,7 +56,9 @@ public sealed class EvidenceCollectorService : IEvidenceCollectorService
                 var pc = pcEvidences[i];
                 var folderName = string.IsNullOrEmpty(pc.SerialNumber)
                     ? pc.PcName
-                    : $"{pc.PcName}_{pc.SerialNumber}";
+                    : string.IsNullOrEmpty(pc.CollectionDate)
+                        ? $"{pc.PcName}_{pc.SerialNumber}"
+                        : $"{pc.PcName}_{pc.SerialNumber}_{pc.CollectionDate}";
                 var pcDir = Path.Combine(outputDirectoryPath, folderName);
                 Directory.CreateDirectory(pcDir);
 

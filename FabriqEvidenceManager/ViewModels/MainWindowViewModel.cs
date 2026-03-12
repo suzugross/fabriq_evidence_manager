@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FabriqEvidenceManager.Helpers;
@@ -29,6 +31,11 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IEvidenceParserService _parserService;
     private readonly IEvidenceCollectorService _collectorService;
     private readonly IExcelExportService _excelExportService;
+    private readonly DispatcherTimer _autoReloadTimer;
+    private bool _isRefreshing;
+
+    /// <summary>自動リロード間隔 (秒)</summary>
+    private const int AutoReloadIntervalSeconds = 30;
 
     public MainWindowViewModel(
         EvidenceDiscoveryService flatDiscovery,
@@ -45,6 +52,13 @@ public partial class MainWindowViewModel : ObservableObject
 
         TargetPCsView = CollectionViewSource.GetDefaultView(TargetPCs);
         TargetPCsView.Filter = FilterPcEvidence;
+
+        // 自動リロードタイマー
+        _autoReloadTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(AutoReloadIntervalSeconds),
+        };
+        _autoReloadTimer.Tick += async (_, _) => await RefreshEvidenceAsync();
     }
 
     // ================================================================
@@ -58,6 +72,18 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>モード選択用の選択肢リスト</summary>
     public EvidenceMode[] AvailableModes { get; } = [EvidenceMode.Flat, EvidenceMode.Nested];
 
+    /// <summary>自動リロードの ON/OFF</summary>
+    [ObservableProperty]
+    private bool _isAutoReloadEnabled;
+
+    partial void OnIsAutoReloadEnabledChanged(bool value)
+    {
+        if (value && CanLoadEvidence())
+            _autoReloadTimer.Start();
+        else
+            _autoReloadTimer.Stop();
+    }
+
     /// <summary>evidence フォルダのパス</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoadEvidenceCommand))]
@@ -69,6 +95,21 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>フィルタリング対応の CollectionView</summary>
     public ICollectionView TargetPCsView { get; }
 
+    /// <summary>表示件数カウンター (例: "3 / 10 件")</summary>
+    public string DisplayCountText
+    {
+        get
+        {
+            var total = TargetPCs.Count;
+            if (total == 0) return "0 件";
+
+            var filtered = TargetPCsView.Cast<object>().Count();
+            return filtered == total
+                ? $"{total} 件"
+                : $"{filtered} / {total} 件";
+        }
+    }
+
     /// <summary>検索テキスト (リアルタイムフィルタリング用)</summary>
     [ObservableProperty]
     private string _searchText = string.Empty;
@@ -76,6 +117,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnSearchTextChanged(string value)
     {
         TargetPCsView.Refresh();
+        OnPropertyChanged(nameof(DisplayCountText));
     }
 
     /// <summary>DataGrid で選択中のPC</summary>
@@ -183,6 +225,8 @@ public partial class MainWindowViewModel : ObservableObject
                 _parserService.PopulateDetails(pc);
                 TargetPCs.Add(pc);
             }
+
+            OnPropertyChanged(nameof(DisplayCountText));
 
             if (TargetPCs.Count == 0)
             {
@@ -367,6 +411,92 @@ public partial class MainWindowViewModel : ObservableObject
         ChecklistFileName = pc.ChecklistFilePath is not null && File.Exists(pc.ChecklistFilePath)
             ? Path.GetFileName(pc.ChecklistFilePath)
             : null;
+    }
+
+    // ================================================================
+    // 自動リロード (差分マージ)
+    // ================================================================
+
+    /// <summary>
+    /// 差分マージによるエビデンス再読み込み。
+    /// 既存リストをクリアせず、新規PCの追加と既存PCのプロパティ更新のみを行う。
+    /// SelectedPc / SearchText / スクロール位置は維持される。
+    /// </summary>
+    private async Task RefreshEvidenceAsync()
+    {
+        // 再入防止 + 手動読み込み中はスキップ
+        if (_isRefreshing || IsLoading) return;
+        if (!CanLoadEvidence()) return;
+
+        _isRefreshing = true;
+
+        try
+        {
+            // 1. バックグラウンドで Discovery + Parse
+            IEvidenceDiscoveryService discovery = SelectedMode == EvidenceMode.Flat
+                ? _flatDiscovery
+                : _nestedDiscovery;
+
+            var newPcList = await Task.Run(() =>
+            {
+                var list = discovery.DiscoverAsync(EvidenceRootPath).Result;
+                foreach (var pc in list)
+                    _parserService.PopulateDetails(pc);
+                return list;
+            });
+
+            // 2. UIスレッド上で差分マージ
+            var existingMap = new Dictionary<string, PcEvidence>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pc in TargetPCs)
+                existingMap[$"{pc.PcName}\t{pc.SerialNumber}\t{pc.CollectionDate}"] = pc;
+
+            var addedCount = 0;
+
+            foreach (var newPc in newPcList)
+            {
+                var key = $"{newPc.PcName}\t{newPc.SerialNumber}\t{newPc.CollectionDate}";
+
+                if (existingMap.TryGetValue(key, out var existing))
+                {
+                    // 既存PCのプロパティを更新 (ObservableObject が UI に通知)
+                    existing.SerialNumber = newPc.SerialNumber;
+                    existing.PcInformationDirectoryPath = newPc.PcInformationDirectoryPath;
+                    existing.AutoCaptureDirectoryPath = newPc.AutoCaptureDirectoryPath;
+                    existing.BitLockerDirectoryPath = newPc.BitLockerDirectoryPath;
+                    existing.ChecklistFilePath = newPc.ChecklistFilePath;
+                    existing.ExportHistoryFilePath = newPc.ExportHistoryFilePath;
+                    existing.HasWarning = newPc.HasWarning;
+                    existing.WarningMessage = newPc.WarningMessage;
+
+                    // MAC/BitLocker コレクションの更新
+                    existing.MacAddresses.Clear();
+                    existing.MacAddresses.AddRange(newPc.MacAddresses);
+                    existing.BitLockerKeys.Clear();
+                    existing.BitLockerKeys.AddRange(newPc.BitLockerKeys);
+                    existing.NotifyParsedDetailsChanged();
+                }
+                else
+                {
+                    // 新規PC → リストに追加
+                    TargetPCs.Add(newPc);
+                    addedCount++;
+                }
+            }
+
+            if (addedCount > 0)
+            {
+                OnPropertyChanged(nameof(DisplayCountText));
+                StatusMessage = $"自動更新: {addedCount} 台の新規PCを検出しました。(合計 {TargetPCs.Count} 台)";
+            }
+        }
+        catch
+        {
+            // 自動リロードのエラーはサイレントに処理 (手動読み込みとは異なり MessageBox を出さない)
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
     }
 
     /// <summary>SearchText による OR フィルタ (PC名, シリアル, 警告メッセージ)</summary>

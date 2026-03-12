@@ -67,8 +67,9 @@ public sealed class EvidenceDiscoveryService : IEvidenceDiscoveryService
     }
 
     /// <summary>
-    /// サブディレクトリ名からPC名・シリアルを抽出し、PcEvidence を取得または新規作成して
+    /// サブディレクトリ名からPC名・シリアル・収集日を抽出し、PcEvidence を取得または新規作成して
     /// パス情報をセットする。(auto_capture, bitlocker, pc_information 用)
+    /// 名前順ソートにより、同日再キッティング時は最新タイムスタンプが後勝ちで上書きされる。
     /// </summary>
     private static void ScanSubDirectories(
         string categoryPath,
@@ -78,20 +79,25 @@ public sealed class EvidenceDiscoveryService : IEvidenceDiscoveryService
         if (!Directory.Exists(categoryPath))
             return;
 
-        foreach (var dirPath in Directory.EnumerateDirectories(categoryPath))
+        // 名前順ソートで同日再キッティング時に最新タイムスタンプが後勝ち
+        var dirs = Directory.EnumerateDirectories(categoryPath)
+            .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dirPath in dirs)
         {
             var dirName = Path.GetFileName(dirPath);
-            if (!EvidencePathParser.TryParse(dirName, out var pcName, out var serial))
+            if (!EvidencePathParser.TryParse(dirName, out var pcName, out var serial, out var date))
                 continue;
 
-            var evidence = GetOrCreate(map, pcName, serial);
+            var evidence = GetOrCreate(map, pcName, serial, date);
             assignPath(evidence, dirPath);
         }
     }
 
     /// <summary>
-    /// ファイル名からPC名・シリアルを抽出し、PcEvidence を取得または新規作成して
+    /// ファイル名からPC名・シリアル・収集日を抽出し、PcEvidence を取得または新規作成して
     /// パス情報をセットする。(checklist, export_history 用)
+    /// 名前順ソートにより、同日再キッティング時は最新タイムスタンプが後勝ちで上書きされる。
     /// </summary>
     private static void ScanFiles(
         string categoryPath,
@@ -102,24 +108,28 @@ public sealed class EvidenceDiscoveryService : IEvidenceDiscoveryService
         if (!Directory.Exists(categoryPath))
             return;
 
-        foreach (var filePath in Directory.EnumerateFiles(categoryPath))
+        // 名前順ソートで同日再キッティング時に最新タイムスタンプが後勝ち
+        var files = Directory.EnumerateFiles(categoryPath)
+            .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var filePath in files)
         {
             var fileName = Path.GetFileNameWithoutExtension(filePath);
-            if (!EvidencePathParser.TryParseWithPrefix(fileName, filePrefix, out var pcName, out var serial))
+            if (!EvidencePathParser.TryParseWithPrefix(fileName, filePrefix, out var pcName, out var serial, out var date))
                 continue;
 
-            var evidence = GetOrCreate(map, pcName, serial);
+            var evidence = GetOrCreate(map, pcName, serial, date);
             assignPath(evidence, filePath);
         }
     }
 
     /// <summary>
-    /// PC名+シリアルの複合キーで辞書から既存の PcEvidence を取得するか、新規作成して登録する。
+    /// PC名+シリアル+収集日の複合キーで辞書から既存の PcEvidence を取得するか、新規作成して登録する。
     /// </summary>
     private static PcEvidence GetOrCreate(
-        Dictionary<string, PcEvidence> map, string pcName, string serial)
+        Dictionary<string, PcEvidence> map, string pcName, string serial, string collectionDate)
     {
-        var key = $"{pcName}\t{serial}";
+        var key = $"{pcName}\t{serial}\t{collectionDate}";
 
         if (map.TryGetValue(key, out var existing))
             return existing;
@@ -128,7 +138,7 @@ public sealed class EvidenceDiscoveryService : IEvidenceDiscoveryService
         {
             PcName = pcName,
             SerialNumber = serial,
-            CollectionDate = string.Empty,
+            CollectionDate = collectionDate,
         };
         map[key] = evidence;
         return evidence;

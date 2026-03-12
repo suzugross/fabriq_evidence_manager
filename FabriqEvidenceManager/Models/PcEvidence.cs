@@ -1,19 +1,25 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace FabriqEvidenceManager.Models;
 
 /// <summary>
 /// 1台のPCに紐づくエビデンス情報の集約モデル。
 /// DiscoveryService が evidence フォルダから構築し、各種 Service が利用する。
+/// 自動リロード時の差分更新でUIへ変更通知を行うため ObservableObject を継承。
 /// </summary>
-public sealed class PcEvidence
+public sealed partial class PcEvidence : ObservableObject
 {
     /// <summary>PC名 (例: "NEW-PC-01")</summary>
     public required string PcName { get; init; }
 
     /// <summary>ハードウェアユニークID / シリアルナンバー (例: "T2NXCV06Y22208C")</summary>
-    public string SerialNumber { get; set; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EthernetMac))]
+    [NotifyPropertyChangedFor(nameof(WifiMac))]
+    private string _serialNumber = string.Empty;
 
     /// <summary>収集日 (ディレクトリ名から取得, 例: "2026_02_26")</summary>
     public required string CollectionDate { get; init; }
@@ -27,27 +33,39 @@ public sealed class PcEvidence
     // ---- evidence ソースパス群 (ファイル収集機能で使用) ----
 
     /// <summary>pc_information ディレクトリの絶対パス</summary>
-    public string? PcInformationDirectoryPath { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DetectedItems))]
+    private string? _pcInformationDirectoryPath;
 
     /// <summary>auto_capture ディレクトリの絶対パス</summary>
-    public string? AutoCaptureDirectoryPath { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DetectedItems))]
+    private string? _autoCaptureDirectoryPath;
 
     /// <summary>bitlocker ディレクトリの絶対パス</summary>
-    public string? BitLockerDirectoryPath { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DetectedItems))]
+    private string? _bitLockerDirectoryPath;
 
     /// <summary>checklist ファイルの絶対パス</summary>
-    public string? ChecklistFilePath { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DetectedItems))]
+    private string? _checklistFilePath;
 
     /// <summary>export_history ファイルの絶対パス</summary>
-    public string? ExportHistoryFilePath { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DetectedItems))]
+    private string? _exportHistoryFilePath;
 
     // ---- エビデンス欠損検知 ----
 
     /// <summary>何らかの欠損・異常がある場合に true</summary>
-    public bool HasWarning { get; set; }
+    [ObservableProperty]
+    private bool _hasWarning;
 
     /// <summary>欠損項目の詳細メッセージ (カンマ区切り)</summary>
-    public string WarningMessage { get; set; } = string.Empty;
+    [ObservableProperty]
+    private string _warningMessage = string.Empty;
 
     // ---- DataGrid 表示用の算出プロパティ ----
 
@@ -85,4 +103,16 @@ public sealed class PcEvidence
                 ChecklistFilePath is not null ? "チェックリスト" : null,
                 ExportHistoryFilePath is not null ? "履歴" : null,
             }.Where(s => s is not null));
+
+    /// <summary>
+    /// MAC/BitLocker 関連の算出プロパティの変更通知を発行する。
+    /// MacAddresses / BitLockerKeys コレクション変更後に呼び出す。
+    /// </summary>
+    public void NotifyParsedDetailsChanged()
+    {
+        OnPropertyChanged(nameof(EthernetMac));
+        OnPropertyChanged(nameof(WifiMac));
+        OnPropertyChanged(nameof(HasBitLocker));
+        OnPropertyChanged(nameof(BitLockerDrives));
+    }
 }

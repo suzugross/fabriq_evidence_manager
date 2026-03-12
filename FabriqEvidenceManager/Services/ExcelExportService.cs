@@ -21,8 +21,8 @@ namespace FabriqEvidenceManager.Services;
 /// </summary>
 public sealed class ExcelExportService : IExcelExportService
 {
-    // 固定列数 (PC名, シリアル番号)
-    private const int FixedColumnCount = 2;
+    // 固定列数 (PC名, シリアル番号, 収集日)
+    private const int FixedColumnCount = 3;
 
     // NIC1列あたりのサブ列数 (MAC, アダプタ, 接続名)
     private const int NicSubColumnCount = 3;
@@ -85,6 +85,7 @@ public sealed class ExcelExportService : IExcelExportService
         // 固定列
         SetHeaderCell(ws, 1, col++, "PC名", BaseHeaderBg);
         SetHeaderCell(ws, 1, col++, "シリアル番号", BaseHeaderBg);
+        SetHeaderCell(ws, 1, col++, "収集日", BaseHeaderBg);
 
         // NIC列 (動的)
         for (var i = 1; i <= maxNicCount; i++)
@@ -123,9 +124,10 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var col = 1;
 
-        // PC名, シリアル番号
+        // PC名, シリアル番号, 収集日
         ws.Cell(row, col++).Value = pc.PcName;
         ws.Cell(row, col++).Value = pc.SerialNumber;
+        ws.Cell(row, col++).Value = pc.CollectionDate;
 
         // NIC列 (MAC順に番号付与)
         for (var i = 0; i < maxNicCount; i++)

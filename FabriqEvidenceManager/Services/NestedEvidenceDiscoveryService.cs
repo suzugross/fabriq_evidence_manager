@@ -32,10 +32,14 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
         if (!Directory.Exists(evidenceRootPath))
             throw new DirectoryNotFoundException($"evidence ルートが見つかりません: {evidenceRootPath}");
 
-        // PC名+シリアルの複合キーで最終的に集約
+        // PC名+シリアル+収集日の複合キーで最終的に集約
         var mergedMap = new Dictionary<string, PcEvidence>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var pcFolder in Directory.EnumerateDirectories(evidenceRootPath))
+        // フォルダ名順ソートで同日再キッティング時に最新が後勝ち
+        var pcFolders = Directory.EnumerateDirectories(evidenceRootPath)
+            .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var pcFolder in pcFolders)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -48,16 +52,16 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
 
             foreach (var pc in pcsInFolder)
             {
-                var key = $"{pc.PcName}\t{pc.SerialNumber}";
+                var key = $"{pc.PcName}\t{pc.SerialNumber}\t{pc.CollectionDate}";
 
                 if (mergedMap.TryGetValue(key, out var existing))
                 {
-                    // 同一PCが複数フォルダに存在する場合、未設定のパスだけ補完
-                    existing.PcInformationDirectoryPath ??= pc.PcInformationDirectoryPath;
-                    existing.AutoCaptureDirectoryPath ??= pc.AutoCaptureDirectoryPath;
-                    existing.BitLockerDirectoryPath ??= pc.BitLockerDirectoryPath;
-                    existing.ChecklistFilePath ??= pc.ChecklistFilePath;
-                    existing.ExportHistoryFilePath ??= pc.ExportHistoryFilePath;
+                    // 同一PC・同一日が複数フォルダに存在する場合、上書き（同日再キッティング対応）
+                    existing.PcInformationDirectoryPath = pc.PcInformationDirectoryPath ?? existing.PcInformationDirectoryPath;
+                    existing.AutoCaptureDirectoryPath = pc.AutoCaptureDirectoryPath ?? existing.AutoCaptureDirectoryPath;
+                    existing.BitLockerDirectoryPath = pc.BitLockerDirectoryPath ?? existing.BitLockerDirectoryPath;
+                    existing.ChecklistFilePath = pc.ChecklistFilePath ?? existing.ChecklistFilePath;
+                    existing.ExportHistoryFilePath = pc.ExportHistoryFilePath ?? existing.ExportHistoryFilePath;
                 }
                 else
                 {

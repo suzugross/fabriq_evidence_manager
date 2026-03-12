@@ -27,25 +27,33 @@ public static partial class EvidencePathParser
     private static partial Regex DateOnlyPrefix();
 
     /// <summary>
-    /// ディレクトリ名またはファイル名（拡張子除去済み）から PC名 と シリアル を抽出する。
+    /// ディレクトリ名またはファイル名（拡張子除去済み）から PC名・シリアル・収集日 を抽出する。
     /// </summary>
     /// <param name="name">ディレクトリ名 or ファイル名ステム (例: "2026_02_26_T2NXCV06Y22208C_NEW-PC-01")</param>
     /// <param name="pcName">抽出されたPC名</param>
     /// <param name="serial">抽出されたシリアル(HardwareUniqueId)</param>
+    /// <param name="collectionDate">抽出された収集日 (yyyy_MM_dd 形式)</param>
     /// <returns>抽出に成功した場合 true</returns>
-    public static bool TryParse(string name, [NotNullWhen(true)] out string? pcName, [NotNullWhen(true)] out string? serial)
+    public static bool TryParse(
+        string name,
+        [NotNullWhen(true)] out string? pcName,
+        [NotNullWhen(true)] out string? serial,
+        [NotNullWhen(true)] out string? collectionDate)
     {
         pcName = null;
         serial = null;
+        collectionDate = null;
 
         if (string.IsNullOrWhiteSpace(name))
             return false;
 
         // 日付プレフィックスを除去 (長い方を先に試す)
+        // どちらの場合も日付部分は先頭 10 文字 (yyyy_MM_dd)
         string remainder;
         var dtMatch = DateTimePrefix().Match(name);
         if (dtMatch.Success)
         {
+            collectionDate = name[..10]; // yyyy_MM_dd
             remainder = name[dtMatch.Length..];
         }
         else
@@ -53,6 +61,7 @@ public static partial class EvidencePathParser
             var dMatch = DateOnlyPrefix().Match(name);
             if (!dMatch.Success)
                 return false;
+            collectionDate = name[..10]; // yyyy_MM_dd
             remainder = name[dMatch.Length..];
         }
 
@@ -69,26 +78,29 @@ public static partial class EvidencePathParser
     }
 
     /// <summary>
-    /// チェックリストやエクスポート履歴のファイル名からPC名とシリアルを抽出する。
+    /// チェックリストやエクスポート履歴のファイル名からPC名・シリアル・収集日を抽出する。
     /// プレフィックス ("checklist_", "history_export_") を除去してから TryParse に委譲する。
     /// </summary>
     /// <param name="fileNameWithoutExtension">拡張子なしファイル名</param>
     /// <param name="prefix">除去すべきプレフィックス (例: "checklist_")</param>
     /// <param name="pcName">抽出されたPC名</param>
     /// <param name="serial">抽出されたシリアル</param>
+    /// <param name="collectionDate">抽出された収集日 (yyyy_MM_dd 形式)</param>
     public static bool TryParseWithPrefix(
         string fileNameWithoutExtension,
         string prefix,
         [NotNullWhen(true)] out string? pcName,
-        [NotNullWhen(true)] out string? serial)
+        [NotNullWhen(true)] out string? serial,
+        [NotNullWhen(true)] out string? collectionDate)
     {
         pcName = null;
         serial = null;
+        collectionDate = null;
 
         if (!fileNameWithoutExtension.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             return false;
 
         var body = fileNameWithoutExtension[prefix.Length..];
-        return TryParse(body, out pcName, out serial);
+        return TryParse(body, out pcName, out serial, out collectionDate);
     }
 }
