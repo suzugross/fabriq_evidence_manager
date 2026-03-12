@@ -43,6 +43,18 @@ public static class EvidenceConstants
     // pc_information 内の個別ログファイル名
     // ================================================================
 
+    /// <summary>システム基本情報ログ</summary>
+    public const string FileSystemInfo = "01_SystemInfo.txt";
+
+    /// <summary>ネットワーク設定ログ</summary>
+    public const string FileNetworkConfig = "03_NetworkConfig.txt";
+
+    /// <summary>プリンタ一覧ログ</summary>
+    public const string FilePrinters = "04_Printers.txt";
+
+    /// <summary>BitLockerステータスログ</summary>
+    public const string FileBitLockerStatus = "05_BitLocker.txt";
+
     /// <summary>MACアドレスログ</summary>
     public const string FileMacAddress = "06_MacAddress.txt";
 

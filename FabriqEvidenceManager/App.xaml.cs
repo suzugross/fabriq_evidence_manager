@@ -25,6 +25,10 @@ public partial class App : Application
         services.AddSingleton<EvidenceDiscoveryService>();
         services.AddSingleton<NestedEvidenceDiscoveryService>();
         services.AddSingleton<IEvidenceParserService, EvidenceParserService>();
+        services.AddSingleton<IHostlistService, HostlistService>();
+        services.AddSingleton<IEvidenceVerificationService, EvidenceVerificationService>();
+        services.AddSingleton<IChecklistParserService, ChecklistParserService>();
+        services.AddSingleton<IBaselineService, BaselineService>();
         services.AddTransient<IEvidenceCollectorService, EvidenceCollectorService>();
         services.AddTransient<IExcelExportService, ExcelExportService>();
 

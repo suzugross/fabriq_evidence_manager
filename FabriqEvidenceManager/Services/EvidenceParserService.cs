@@ -94,39 +94,49 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             }
         }
 
-        // ---- エビデンス欠損検知 ----
-        ValidateEvidence(pc);
+        // ---- エビデンス欠損検知 (初回は全項目チェック) ----
+        ValidateEvidence(pc, null);
     }
+
+    /// <inheritdoc />
+    public void RevalidateEvidence(PcEvidence pc, EvidenceCheckOptions options)
+        => ValidateEvidence(pc, options);
 
     /// <summary>
     /// パース結果を検証し、欠損がある場合は HasWarning / WarningMessage をセットする。
+    /// options が null の場合は全項目チェック（初回パース時）。
     /// </summary>
-    private static void ValidateEvidence(PcEvidence pc)
+    private static void ValidateEvidence(PcEvidence pc, EvidenceCheckOptions? options)
     {
         var warnings = new List<string>();
 
         // MACアドレス欠損
-        if (string.IsNullOrEmpty(pc.EthernetMac))
+        if (options?.CheckEthernetMac != false && string.IsNullOrEmpty(pc.EthernetMac))
             warnings.Add("MACアドレス(有線)欠損");
-        if (string.IsNullOrEmpty(pc.WifiMac))
+        if (options?.CheckWifiMac != false && string.IsNullOrEmpty(pc.WifiMac))
             warnings.Add("MACアドレス(Wi-Fi)欠損");
 
         // BitLocker欠損
-        if (pc.BitLockerKeys.Count == 0)
+        if (options?.CheckBitLocker != false && pc.BitLockerKeys.Count == 0)
             warnings.Add("BitLockerキー未取得");
 
         // ディレクトリ/ファイル欠損
-        if (pc.PcInformationDirectoryPath is null)
+        if (options?.CheckPcInformation != false && pc.PcInformationDirectoryPath is null)
             warnings.Add("pc_information未検出");
-        if (pc.AutoCaptureDirectoryPath is null)
+        if (options?.CheckAutoCapture != false && pc.AutoCaptureDirectoryPath is null)
             warnings.Add("auto_capture未検出");
-        if (pc.ChecklistFilePath is null)
+        if (options?.CheckChecklist != false && pc.ChecklistFilePath is null)
             warnings.Add("チェックリスト未検出");
 
         if (warnings.Count > 0)
         {
             pc.HasWarning = true;
             pc.WarningMessage = string.Join(", ", warnings);
+        }
+        else
+        {
+            pc.HasWarning = false;
+            pc.WarningMessage = string.Empty;
         }
     }
 
@@ -298,6 +308,206 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
 
         return string.Empty;
     }
+
+    // ================================================================
+    // ホスト名 (01_SystemInfo.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public string ParseHostname(string filePath)
+    {
+        foreach (var line in ReadAllLines(filePath))
+        {
+            if (TryExtractValue(line.Trim(), "Hostname:", out var hostname))
+                return hostname;
+        }
+        return string.Empty;
+    }
+
+    // ================================================================
+    // ネットワーク設定 (03_NetworkConfig.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<NetworkInterfaceInfo> ParseNetworkConfig(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<NetworkInterfaceInfo>();
+
+        string? currentInterface = null;
+        string ipv4 = "", subnet = "", gateway = "";
+        var dnsList = new List<string>();
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            // ヘッダ行はスキップ
+            if (trimmed.StartsWith("====") || trimmed.Contains("Network Settings"))
+                continue;
+
+            if (trimmed.StartsWith("Interface:", StringComparison.OrdinalIgnoreCase))
+            {
+                // 前のブロックをフラッシュ
+                if (currentInterface is not null)
+                    results.Add(BuildNetworkInfo(currentInterface, ipv4, subnet, gateway, dnsList));
+
+                currentInterface = trimmed["Interface:".Length..].Trim();
+                ipv4 = "";
+                subnet = "";
+                gateway = "";
+                dnsList = [];
+            }
+            else if (TryExtractValue(trimmed, "IPv4 Address:", out var ip))
+            {
+                ipv4 = ip;
+            }
+            else if (TryExtractValue(trimmed, "Subnet Mask:", out var sm))
+            {
+                subnet = sm;
+            }
+            else if (TryExtractValue(trimmed, "Default Gateway:", out var gw))
+            {
+                gateway = gw;
+            }
+            else if (TryExtractValue(trimmed, "DNS Servers:", out var dns))
+            {
+                dnsList = dns.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .Where(d => !d.Contains(':')) // IPv6 (fec0:...) を除外
+                    .Order()
+                    .ToList();
+            }
+        }
+
+        // 最後のブロック
+        if (currentInterface is not null)
+            results.Add(BuildNetworkInfo(currentInterface, ipv4, subnet, gateway, dnsList));
+
+        return results;
+    }
+
+    private static NetworkInterfaceInfo BuildNetworkInfo(
+        string interfaceName, string ipv4, string subnet, string gateway, List<string> dnsList) =>
+        new()
+        {
+            InterfaceName = interfaceName,
+            IPv4Address = ipv4,
+            SubnetMask = subnet,
+            DefaultGateway = gateway,
+            DnsServers = dnsList,
+        };
+
+    // ================================================================
+    // プリンタ一覧 (04_Printers.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<PrinterEntry> ParsePrinters(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<PrinterEntry>();
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            // ヘッダ行・空行・区切り行をスキップ
+            if (string.IsNullOrEmpty(trimmed)
+                || trimmed.StartsWith("====")
+                || trimmed.Contains("Printers")
+                || !trimmed.Contains('='))
+                continue;
+
+            // Name=xxx|Driver=xxx|Port=xxx 形式をパース
+            var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var segment in trimmed.Split('|'))
+            {
+                var eqIndex = segment.IndexOf('=');
+                if (eqIndex > 0)
+                    fields[segment[..eqIndex].Trim()] = segment[(eqIndex + 1)..].Trim();
+            }
+
+            if (fields.TryGetValue("Name", out var name) && !string.IsNullOrWhiteSpace(name))
+            {
+                results.Add(new PrinterEntry
+                {
+                    Name = name,
+                    Driver = fields.GetValueOrDefault("Driver", string.Empty),
+                    Port = fields.GetValueOrDefault("Port", string.Empty),
+                });
+            }
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // BitLockerステータス (05_BitLocker.txt)
+    // ================================================================
+
+    /// <summary>Volume X: [Label] パターン</summary>
+    [GeneratedRegex(@"^Volume\s+([A-Z]):\s*\[(\w+)\]")]
+    private static partial Regex BitLockerVolumeHeaderPattern();
+
+    /// <inheritdoc />
+    public IReadOnlyList<BitLockerVolumeStatus> ParseBitLockerStatus(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<BitLockerVolumeStatus>();
+
+        string? drive = null;
+        string label = "", conversion = "", percentage = "", method = "", protection = "";
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            // ヘッダ行スキップ
+            if (trimmed.StartsWith("====") || trimmed.Contains("BitLocker Status"))
+                continue;
+
+            var volMatch = BitLockerVolumeHeaderPattern().Match(trimmed);
+            if (volMatch.Success)
+            {
+                // 前のブロックをフラッシュ
+                if (drive is not null)
+                    results.Add(BuildVolumeStatus(drive, label, conversion, percentage, method, protection));
+
+                drive = volMatch.Groups[1].Value;
+                label = volMatch.Groups[2].Value;
+                conversion = "";
+                percentage = "";
+                method = "";
+                protection = "";
+            }
+            else if (TryExtractValue(trimmed, "Conversion Status:", out var cs))
+                conversion = cs;
+            else if (TryExtractValue(trimmed, "Encryption Percentage:", out var ep))
+                percentage = ep;
+            else if (TryExtractValue(trimmed, "Encryption Method:", out var em))
+                method = em;
+            else if (TryExtractValue(trimmed, "Protection Status:", out var ps))
+                protection = ps;
+        }
+
+        // 最後のブロック
+        if (drive is not null)
+            results.Add(BuildVolumeStatus(drive, label, conversion, percentage, method, protection));
+
+        return results;
+    }
+
+    private static BitLockerVolumeStatus BuildVolumeStatus(
+        string drive, string label, string conversion, string percentage, string method, string protection) =>
+        new()
+        {
+            DriveLetter = drive,
+            VolumeLabel = label,
+            ConversionStatus = conversion,
+            EncryptionPercentage = percentage,
+            EncryptionMethod = method,
+            ProtectionStatus = protection,
+        };
 
     // ================================================================
     // ファイルI/O (BOM付きUTF-8)

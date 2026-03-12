@@ -16,9 +16,11 @@ public interface IExcelExportService
     /// </summary>
     /// <param name="pcEvidences">エクスポート対象のPCエビデンス一覧</param>
     /// <param name="outputFilePath">出力先Excelファイルの絶対パス (.xlsx)</param>
+    /// <param name="options">突合結果・チェックリスト・実行履歴などの追加データ (省略可)</param>
     /// <param name="cancellationToken">キャンセルトークン</param>
     Task ExportAsync(
         IReadOnlyList<PcEvidence> pcEvidences,
         string outputFilePath,
+        ExcelExportOptions? options = null,
         CancellationToken cancellationToken = default);
 }

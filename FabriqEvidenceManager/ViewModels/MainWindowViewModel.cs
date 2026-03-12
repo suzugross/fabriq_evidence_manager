@@ -31,6 +31,10 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IEvidenceParserService _parserService;
     private readonly IEvidenceCollectorService _collectorService;
     private readonly IExcelExportService _excelExportService;
+    private readonly IHostlistService _hostlistService;
+    private readonly IEvidenceVerificationService _verificationService;
+    private readonly IChecklistParserService _checklistParserService;
+    private readonly IBaselineService _baselineService;
     private readonly DispatcherTimer _autoReloadTimer;
     private bool _isRefreshing;
 
@@ -42,16 +46,27 @@ public partial class MainWindowViewModel : ObservableObject
         NestedEvidenceDiscoveryService nestedDiscovery,
         IEvidenceParserService parserService,
         IEvidenceCollectorService collectorService,
-        IExcelExportService excelExportService)
+        IExcelExportService excelExportService,
+        IHostlistService hostlistService,
+        IEvidenceVerificationService verificationService,
+        IChecklistParserService checklistParserService,
+        IBaselineService baselineService)
     {
         _flatDiscovery = flatDiscovery;
         _nestedDiscovery = nestedDiscovery;
         _parserService = parserService;
         _collectorService = collectorService;
         _excelExportService = excelExportService;
+        _hostlistService = hostlistService;
+        _verificationService = verificationService;
+        _checklistParserService = checklistParserService;
+        _baselineService = baselineService;
 
         TargetPCsView = CollectionViewSource.GetDefaultView(TargetPCs);
         TargetPCsView.Filter = FilterPcEvidence;
+
+        // エビデンスチェックオプション変更時に全PC再検証
+        CheckOptions.PropertyChanged += (_, _) => RevalidateAllPcs();
 
         // 自動リロードタイマー
         _autoReloadTimer = new DispatcherTimer
@@ -59,6 +74,15 @@ public partial class MainWindowViewModel : ObservableObject
             Interval = TimeSpan.FromSeconds(AutoReloadIntervalSeconds),
         };
         _autoReloadTimer.Tick += async (_, _) => await RefreshEvidenceAsync();
+    }
+
+    /// <summary>
+    /// 全PCのエビデンス欠損チェックを現在の CheckOptions で再実行する。
+    /// </summary>
+    private void RevalidateAllPcs()
+    {
+        foreach (var pc in TargetPCs)
+            _parserService.RevalidateEvidence(pc, CheckOptions);
     }
 
     // ================================================================
@@ -176,9 +200,136 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = "evidence フォルダを選択してください。";
 
+    // ---- hostlist 突合関連 ----
+
+    /// <summary>hostlist.csv のファイルパス</summary>
+    [ObservableProperty]
+    private string _hostlistPath = string.Empty;
+
+    /// <summary>hostlist 読み込み状態テキスト (例: "3件読込済")</summary>
+    [ObservableProperty]
+    private string _hostlistStatusText = "未読込";
+
+    /// <summary>hostlist が読み込まれているか</summary>
+    public bool IsHostlistLoaded => _hostlistService.IsLoaded;
+
+    /// <summary>選択PCの突合レポート</summary>
+    [ObservableProperty]
+    private VerificationReport? _currentVerificationReport;
+
+    /// <summary>選択PCのチェックリスト結果</summary>
+    [ObservableProperty]
+    private ChecklistResult? _currentChecklistResult;
+
+    /// <summary>選択PCの実行履歴</summary>
+    [ObservableProperty]
+    private IReadOnlyList<ExportHistoryEntry>? _currentExportHistory;
+
+    // ---- エビデンスチェックオプション ----
+
+    /// <summary>エビデンス欠損チェックの有効/無効設定</summary>
+    public EvidenceCheckOptions CheckOptions { get; } = new();
+
+    // ---- ベースライン突合関連 ----
+
+    /// <summary>ベースライン CSV のファイルパス</summary>
+    [ObservableProperty]
+    private string _baselinePath = string.Empty;
+
+    /// <summary>ベースライン読み込み状態テキスト</summary>
+    [ObservableProperty]
+    private string _baselineStatusText = "未読込";
+
+    /// <summary>ベースラインが読み込まれているか</summary>
+    public bool IsBaselineLoaded => _baselineService.IsLoaded;
+
+    /// <summary>選択PCのベースライン突合レポート</summary>
+    [ObservableProperty]
+    private BaselineComparisonReport? _currentBaselineReport;
+
     // ================================================================
     // Commands
     // ================================================================
+
+    /// <summary>hostlist.csv を選択して読み込む。</summary>
+    [RelayCommand]
+    private void LoadHostlist()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "hostlist.csv を選択",
+            Filter = "CSV ファイル (*.csv)|*.csv|全てのファイル (*.*)|*.*",
+        };
+
+        if (!string.IsNullOrEmpty(HostlistPath) && File.Exists(HostlistPath))
+            dialog.InitialDirectory = Path.GetDirectoryName(HostlistPath);
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        try
+        {
+            var count = _hostlistService.Load(dialog.FileName);
+            HostlistPath = dialog.FileName;
+            HostlistStatusText = $"{count}件読込済";
+            OnPropertyChanged(nameof(IsHostlistLoaded));
+            StatusMessage = $"hostlist.csv を読み込みました ({count} 件)。";
+
+            // 現在選択中のPCがあれば突合を再実行
+            if (SelectedPc is not null)
+                UpdateVerificationInfo(SelectedPc);
+        }
+        catch (Exception ex)
+        {
+            HostlistStatusText = "読込エラー";
+            StatusMessage = $"hostlist 読込エラー: {ex.Message}";
+            MessageBox.Show(
+                $"hostlist.csv の読み込みに失敗しました。\n\n{ex.Message}",
+                "hostlist エラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>パイロット実行のベースライン CSV を選択して読み込む。</summary>
+    [RelayCommand]
+    private void LoadBaseline()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "ベースライン (パイロット実行の export_history CSV) を選択",
+            Filter = "CSV ファイル (*.csv)|*.csv|全てのファイル (*.*)|*.*",
+        };
+
+        if (!string.IsNullOrEmpty(BaselinePath) && File.Exists(BaselinePath))
+            dialog.InitialDirectory = Path.GetDirectoryName(BaselinePath);
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        try
+        {
+            var count = _baselineService.Load(dialog.FileName);
+            BaselinePath = dialog.FileName;
+            BaselineStatusText = $"{count}モジュール読込済";
+            OnPropertyChanged(nameof(IsBaselineLoaded));
+            StatusMessage = $"ベースラインを読み込みました ({count} モジュール)。";
+
+            // 現在選択中のPCがあれば突合を再実行
+            if (SelectedPc is not null)
+                UpdateVerificationInfo(SelectedPc);
+        }
+        catch (Exception ex)
+        {
+            BaselineStatusText = "読込エラー";
+            StatusMessage = $"ベースライン読込エラー: {ex.Message}";
+            MessageBox.Show(
+                $"ベースライン CSV の読み込みに失敗しました。\n\n{ex.Message}",
+                "ベースラインエラー",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
 
     /// <summary>フォルダ選択ダイアログを開き、EvidenceRootPath にセットして自動で読み込みを開始する。</summary>
     [RelayCommand]
@@ -304,12 +455,13 @@ public partial class MainWindowViewModel : ObservableObject
 
             var copyErrors = await _collectorService.CollectAsync(pcList, deliveryPath, progress, cancellationToken);
 
-            // 2. Excel 台帳出力
+            // 2. Excel 台帳出力 (突合・チェックリスト・実行履歴を含む)
             StatusMessage = "Excel 台帳を出力中...";
             var excelFileName = $"{DateTime.Now:yyyy_MM_dd_HHmmss}_{EvidenceConstants.ExcelFileNameSuffix}.xlsx";
             var excelPath = Path.Combine(deliveryPath, excelFileName);
 
-            await _excelExportService.ExportAsync(pcList, excelPath, cancellationToken);
+            var exportOptions = BuildExcelExportOptions(pcList);
+            await _excelExportService.ExportAsync(pcList, excelPath, exportOptions, cancellationToken);
 
             // コピー失敗ファイルがあれば警告表示
             if (copyErrors.Count > 0)
@@ -382,6 +534,10 @@ public partial class MainWindowViewModel : ObservableObject
         if (pc is null)
         {
             ChecklistFileName = null;
+            CurrentVerificationReport = null;
+            CurrentChecklistResult = null;
+            CurrentExportHistory = null;
+            CurrentBaselineReport = null;
             OnPropertyChanged(nameof(CurrentPreviewImagePath));
             OnPropertyChanged(nameof(PreviewCounterText));
             OnPropertyChanged(nameof(HasMultipleImages));
@@ -411,6 +567,78 @@ public partial class MainWindowViewModel : ObservableObject
         ChecklistFileName = pc.ChecklistFilePath is not null && File.Exists(pc.ChecklistFilePath)
             ? Path.GetFileName(pc.ChecklistFilePath)
             : null;
+
+        // 突合・チェックリスト・実行履歴
+        UpdateVerificationInfo(pc);
+    }
+
+    /// <summary>突合レポート・チェックリスト・実行履歴を更新する。</summary>
+    private void UpdateVerificationInfo(PcEvidence pc)
+    {
+        // hostlist 突合
+        try
+        {
+            CurrentVerificationReport = _verificationService.Verify(pc);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Verify Error] {pc.PcName}: {ex.Message}");
+            CurrentVerificationReport = null;
+        }
+
+        // チェックリスト HTML パース
+        if (pc.ChecklistFilePath is not null && File.Exists(pc.ChecklistFilePath))
+        {
+            try
+            {
+                CurrentChecklistResult = _checklistParserService.ParseChecklistHtml(pc.ChecklistFilePath);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Checklist Error] {pc.PcName}: {ex.Message}");
+                CurrentChecklistResult = null;
+            }
+        }
+        else
+        {
+            CurrentChecklistResult = null;
+        }
+
+        // 実行履歴 CSV パース
+        if (pc.ExportHistoryFilePath is not null && File.Exists(pc.ExportHistoryFilePath))
+        {
+            try
+            {
+                CurrentExportHistory = _checklistParserService.ParseExportHistory(pc.ExportHistoryFilePath);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[History Error] {pc.PcName}: {ex.Message}");
+                CurrentExportHistory = null;
+            }
+        }
+        else
+        {
+            CurrentExportHistory = null;
+        }
+
+        // ベースライン突合
+        if (_baselineService.IsLoaded && CurrentExportHistory is { Count: > 0 })
+        {
+            try
+            {
+                CurrentBaselineReport = _baselineService.Compare(pc.PcName, CurrentExportHistory);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Baseline Error] {pc.PcName}: {ex.Message}");
+                CurrentBaselineReport = null;
+            }
+        }
+        else
+        {
+            CurrentBaselineReport = null;
+        }
     }
 
     // ================================================================
@@ -497,6 +725,79 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _isRefreshing = false;
         }
+    }
+
+    /// <summary>
+    /// 全PCの突合・チェックリスト・実行履歴データを収集し ExcelExportOptions を構築する。
+    /// </summary>
+    private ExcelExportOptions BuildExcelExportOptions(IReadOnlyList<PcEvidence> pcList)
+    {
+        var verificationReports = new Dictionary<string, VerificationReport>(StringComparer.OrdinalIgnoreCase);
+        var checklistResults = new Dictionary<string, ChecklistResult>(StringComparer.OrdinalIgnoreCase);
+        var exportHistories = new Dictionary<string, IReadOnlyList<ExportHistoryEntry>>(StringComparer.OrdinalIgnoreCase);
+        var baselineReports = new Dictionary<string, BaselineComparisonReport>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var pc in pcList)
+        {
+            // 突合
+            try
+            {
+                var report = _verificationService.Verify(pc);
+                verificationReports[pc.PcName] = report;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Export Verify] {pc.PcName}: {ex.Message}");
+            }
+
+            // チェックリスト HTML
+            if (pc.ChecklistFilePath is not null && File.Exists(pc.ChecklistFilePath))
+            {
+                try
+                {
+                    checklistResults[pc.PcName] = _checklistParserService.ParseChecklistHtml(pc.ChecklistFilePath);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Export Checklist] {pc.PcName}: {ex.Message}");
+                }
+            }
+
+            // 実行履歴 CSV
+            if (pc.ExportHistoryFilePath is not null && File.Exists(pc.ExportHistoryFilePath))
+            {
+                try
+                {
+                    var history = _checklistParserService.ParseExportHistory(pc.ExportHistoryFilePath);
+                    exportHistories[pc.PcName] = history;
+
+                    // ベースライン突合
+                    if (_baselineService.IsLoaded && history.Count > 0)
+                    {
+                        try
+                        {
+                            baselineReports[pc.PcName] = _baselineService.Compare(pc.PcName, history);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[Export Baseline] {pc.PcName}: {ex.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Export History] {pc.PcName}: {ex.Message}");
+                }
+            }
+        }
+
+        return new ExcelExportOptions
+        {
+            VerificationReports = verificationReports,
+            ChecklistResults = checklistResults,
+            ExportHistories = exportHistories,
+            BaselineReports = baselineReports,
+        };
     }
 
     /// <summary>SearchText による OR フィルタ (PC名, シリアル, 警告メッセージ)</summary>
