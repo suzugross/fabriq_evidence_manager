@@ -85,6 +85,74 @@ public partial class MainWindowViewModel : ObservableObject
             _parserService.RevalidateEvidence(pc, CheckOptions);
     }
 
+    /// <summary>
+    /// 全PCの Caution (要確認) 判定を実行する。
+    /// hostlist不一致 / チェックリストNG / ベースラインNG を検出し、
+    /// PcEvidence.HasCaution / CautionMessage を更新する。
+    /// </summary>
+    private void EvaluateCautionsForAllPcs()
+    {
+        foreach (var pc in TargetPCs)
+            EvaluateCaution(pc);
+    }
+
+    /// <summary>1台分の Caution 判定。</summary>
+    private void EvaluateCaution(PcEvidence pc)
+    {
+        var cautions = new List<string>();
+
+        // hostlist 突合
+        if (_hostlistService.IsLoaded)
+        {
+            try
+            {
+                var report = _verificationService.Verify(pc);
+                if (report.HostlistFound && !report.AllMatch)
+                    cautions.Add($"hostlist不一致({report.MismatchCount}件)");
+            }
+            catch { /* 判定失敗時はスキップ */ }
+        }
+
+        // チェックリスト NG
+        if (pc.ChecklistFilePath is not null && File.Exists(pc.ChecklistFilePath))
+        {
+            try
+            {
+                var checklist = _checklistParserService.ParseChecklistHtml(pc.ChecklistFilePath);
+                if (checklist.NgCount > 0)
+                    cautions.Add($"チェックリストNG({checklist.NgCount}件)");
+            }
+            catch { /* 判定失敗時はスキップ */ }
+        }
+
+        // ベースライン突合
+        if (_baselineService.IsLoaded && pc.ExportHistoryFilePath is not null && File.Exists(pc.ExportHistoryFilePath))
+        {
+            try
+            {
+                var history = _checklistParserService.ParseExportHistory(pc.ExportHistoryFilePath);
+                if (history.Count > 0)
+                {
+                    var baseline = _baselineService.Compare(pc.PcName, history);
+                    if (baseline.DifferenceCount > 0)
+                        cautions.Add($"ベースライン差異({baseline.DifferenceCount}件)");
+                }
+            }
+            catch { /* 判定失敗時はスキップ */ }
+        }
+
+        if (cautions.Count > 0)
+        {
+            pc.HasCaution = true;
+            pc.CautionMessage = string.Join(", ", cautions);
+        }
+        else
+        {
+            pc.HasCaution = false;
+            pc.CautionMessage = string.Empty;
+        }
+    }
+
     // ================================================================
     // Observable Properties
     // ================================================================
@@ -275,7 +343,8 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(IsHostlistLoaded));
             StatusMessage = $"hostlist.csv を読み込みました ({count} 件)。";
 
-            // 現在選択中のPCがあれば突合を再実行
+            // 全PCの Caution 再判定 + 選択PC のプレビュー更新
+            EvaluateCautionsForAllPcs();
             if (SelectedPc is not null)
                 UpdateVerificationInfo(SelectedPc);
         }
@@ -315,7 +384,8 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(IsBaselineLoaded));
             StatusMessage = $"ベースラインを読み込みました ({count} モジュール)。";
 
-            // 現在選択中のPCがあれば突合を再実行
+            // 全PCの Caution 再判定 + 選択PC のプレビュー更新
+            EvaluateCautionsForAllPcs();
             if (SelectedPc is not null)
                 UpdateVerificationInfo(SelectedPc);
         }
@@ -370,10 +440,11 @@ public partial class MainWindowViewModel : ObservableObject
                 : _nestedDiscovery;
             var pcList = await discovery.DiscoverAsync(EvidenceRootPath, cancellationToken);
 
-            // 2. Parse: 各PCのログファイルからデータを抽出
+            // 2. Parse: 各PCのログファイルからデータを抽出 + CheckOptions 適用
             foreach (var pc in pcList)
             {
                 _parserService.PopulateDetails(pc);
+                _parserService.RevalidateEvidence(pc, CheckOptions);
                 TargetPCs.Add(pc);
             }
 
@@ -396,6 +467,8 @@ public partial class MainWindowViewModel : ObservableObject
             }
             else
             {
+                // Caution 判定 (hostlist/baseline/checklist が読込済みの場合)
+                EvaluateCautionsForAllPcs();
                 StatusMessage = $"読み込み完了: {TargetPCs.Count} 台のPCを検出しました。";
             }
         }
@@ -669,7 +742,10 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 var list = discovery.DiscoverAsync(EvidenceRootPath).Result;
                 foreach (var pc in list)
+                {
                     _parserService.PopulateDetails(pc);
+                    _parserService.RevalidateEvidence(pc, CheckOptions);
+                }
                 return list;
             });
 

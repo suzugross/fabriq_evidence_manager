@@ -397,11 +397,14 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Auto">
 
-                    <!-- 警告行ハイライト (HasWarning=True → 薄い赤背景) -->
+                    <!-- 行ハイライト: HasCaution=黄, HasWarning=赤 (赤が優先) -->
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow">
                             <Setter Property="Background" Value="Transparent"/>
                             <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasCaution}" Value="True">
+                                    <Setter Property="Background" Value="#FFF9C4"/>
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding HasWarning}" Value="True">
                                     <Setter Property="Background" Value="#FFCDD2"/>
                                 </DataTrigger>
@@ -466,19 +469,25 @@
                                             MinWidth="120"
                                             Width="SizeToCells"/>
 
-                        <!-- ステータス (警告メッセージ) -->
-                        <DataGridTextColumn Header="ステータス"
-                                            Binding="{Binding WarningMessage}"
-                                            Width="*">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="#C62828"/>
-                                    <Setter Property="Padding" Value="4,2"/>
-                                    <Setter Property="TextWrapping" Value="NoWrap"/>
-                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                        <!-- ステータス (警告 + 要確認メッセージ) -->
+                        <DataGridTemplateColumn Header="ステータス" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Vertical" Margin="4,2">
+                                        <TextBlock Text="{Binding WarningMessage}"
+                                                   Foreground="#C62828"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Visibility="{Binding HasWarning, Converter={StaticResource BoolToVis}}"/>
+                                        <TextBlock Text="{Binding CautionMessage}"
+                                                   Foreground="#E65100"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Visibility="{Binding HasCaution, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -628,11 +637,20 @@
                                 </TextBlock>
                             </Grid>
 
-                            <!-- 警告メッセージ -->
+                            <!-- 警告メッセージ (赤: エビデンス欠損) -->
                             <Border Margin="0,10,0,0" Padding="8,6"
-                                    Background="#FFF3E0" BorderBrush="#E65100" BorderThickness="1"
+                                    Background="#FFEBEE" BorderBrush="#C62828" BorderThickness="1"
                                     Visibility="{Binding SelectedPc.HasWarning, Converter={StaticResource BoolToVis}}">
                                 <TextBlock Text="{Binding SelectedPc.WarningMessage}"
+                                           FontSize="11" Foreground="#C62828"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                            <!-- 要確認メッセージ (黄: hostlist不一致/ベースラインNG/チェックリストNG) -->
+                            <Border Margin="0,6,0,0" Padding="8,6"
+                                    Background="#FFF8E1" BorderBrush="#E65100" BorderThickness="1"
+                                    Visibility="{Binding SelectedPc.HasCaution, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding SelectedPc.CautionMessage}"
                                            FontSize="11" Foreground="#E65100"
                                            TextWrapping="Wrap"/>
                             </Border>

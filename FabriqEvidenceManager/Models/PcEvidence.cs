@@ -67,6 +67,16 @@ public sealed partial class PcEvidence : ObservableObject
     [ObservableProperty]
     private string _warningMessage = string.Empty;
 
+    // ---- 要確認項目検知 (hostlist不一致 / ベースラインNG / チェックリストNG) ----
+
+    /// <summary>要確認項目がある場合に true (黄色ハイライト)</summary>
+    [ObservableProperty]
+    private bool _hasCaution;
+
+    /// <summary>要確認項目の詳細メッセージ (カンマ区切り)</summary>
+    [ObservableProperty]
+    private string _cautionMessage = string.Empty;
+
     // ---- DataGrid 表示用の算出プロパティ ----
 
     /// <summary>イーサネットのMACアドレス (未検出時は空文字列)</summary>
