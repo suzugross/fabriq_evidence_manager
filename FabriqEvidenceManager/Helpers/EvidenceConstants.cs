@@ -17,6 +17,9 @@ public static class EvidenceConstants
     /// <summary>自動キャプチャ画像格納ディレクトリ</summary>
     public const string DirAutoCapture = "auto_capture";
 
+    /// <summary>魚拓 (スクリーンショット) 格納ディレクトリ</summary>
+    public const string DirGyotaku = "gyotaku";
+
     /// <summary>BitLocker回復キー格納ディレクトリ</summary>
     public const string DirBitLocker = "bitlocker";
 

@@ -21,8 +21,9 @@ public partial class App : Application
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Services
-        services.AddSingleton<IEvidenceDiscoveryService, EvidenceDiscoveryService>();
+        // Services (Discovery: Flat + Nested の両方を登録し ViewModel で切替)
+        services.AddSingleton<EvidenceDiscoveryService>();
+        services.AddSingleton<NestedEvidenceDiscoveryService>();
         services.AddSingleton<IEvidenceParserService, EvidenceParserService>();
         services.AddTransient<IEvidenceCollectorService, EvidenceCollectorService>();
         services.AddTransient<IExcelExportService, ExcelExportService>();

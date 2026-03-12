@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FabriqEvidenceManager.Helpers;
 using FabriqEvidenceManager.Models;
+using FabriqEvidenceManager.Services;
 using FabriqEvidenceManager.Services.Interfaces;
 using Microsoft.Win32;
 
@@ -23,18 +24,21 @@ namespace FabriqEvidenceManager.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    private readonly IEvidenceDiscoveryService _discoveryService;
+    private readonly EvidenceDiscoveryService _flatDiscovery;
+    private readonly NestedEvidenceDiscoveryService _nestedDiscovery;
     private readonly IEvidenceParserService _parserService;
     private readonly IEvidenceCollectorService _collectorService;
     private readonly IExcelExportService _excelExportService;
 
     public MainWindowViewModel(
-        IEvidenceDiscoveryService discoveryService,
+        EvidenceDiscoveryService flatDiscovery,
+        NestedEvidenceDiscoveryService nestedDiscovery,
         IEvidenceParserService parserService,
         IEvidenceCollectorService collectorService,
         IExcelExportService excelExportService)
     {
-        _discoveryService = discoveryService;
+        _flatDiscovery = flatDiscovery;
+        _nestedDiscovery = nestedDiscovery;
         _parserService = parserService;
         _collectorService = collectorService;
         _excelExportService = excelExportService;
@@ -46,6 +50,13 @@ public partial class MainWindowViewModel : ObservableObject
     // ================================================================
     // Observable Properties
     // ================================================================
+
+    /// <summary>evidence フォルダの構造モード</summary>
+    [ObservableProperty]
+    private EvidenceMode _selectedMode = EvidenceMode.Flat;
+
+    /// <summary>モード選択用の選択肢リスト</summary>
+    public EvidenceMode[] AvailableModes { get; } = [EvidenceMode.Flat, EvidenceMode.Nested];
 
     /// <summary>evidence フォルダのパス</summary>
     [ObservableProperty]
@@ -160,8 +171,11 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            // 1. Discovery: PC一覧を構築
-            var pcList = await _discoveryService.DiscoverAsync(EvidenceRootPath, cancellationToken);
+            // 1. Discovery: PC一覧を構築 (モードに応じたサービスを使用)
+            IEvidenceDiscoveryService discovery = SelectedMode == EvidenceMode.Flat
+                ? _flatDiscovery
+                : _nestedDiscovery;
+            var pcList = await discovery.DiscoverAsync(EvidenceRootPath, cancellationToken);
 
             // 2. Parse: 各PCのログファイルからデータを抽出
             foreach (var pc in pcList)
