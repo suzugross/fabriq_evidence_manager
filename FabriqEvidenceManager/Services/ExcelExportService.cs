@@ -131,9 +131,9 @@ public sealed class ExcelExportService : IExcelExportService
         // NIC列 (動的)
         for (var i = 1; i <= maxNicCount; i++)
         {
-            SetHeaderCell(ws, 1, col++, $"NIC{i}_MAC", NicHeaderBg);
             SetHeaderCell(ws, 1, col++, $"NIC{i}_アダプタ", NicHeaderBg);
             SetHeaderCell(ws, 1, col++, $"NIC{i}_接続名", NicHeaderBg);
+            SetHeaderCell(ws, 1, col++, $"NIC{i}_MAC", NicHeaderBg);
         }
 
         // BitLocker列 (動的: ドライブレター別)
@@ -187,15 +187,16 @@ public sealed class ExcelExportService : IExcelExportService
             verifyCell.Style.Font.FontColor = XLColor.Gray;
         }
 
-        // NIC列 (MAC順に番号付与)
+        // NIC列 (接続名でソートして全PC間の列順を統一)
+        var sortedMacs = pc.MacAddresses.OrderBy(m => m.ConnectionName, StringComparer.OrdinalIgnoreCase).ToList();
         for (var i = 0; i < maxNicCount; i++)
         {
-            if (i < pc.MacAddresses.Count)
+            if (i < sortedMacs.Count)
             {
-                var mac = pc.MacAddresses[i];
-                ws.Cell(row, col++).Value = mac.PhysicalAddress;
+                var mac = sortedMacs[i];
                 ws.Cell(row, col++).Value = mac.AdapterName;
                 ws.Cell(row, col++).Value = mac.ConnectionName;
+                ws.Cell(row, col++).Value = mac.PhysicalAddress;
             }
             else
             {
