@@ -715,8 +715,8 @@
                                                                 <Setter Property="Foreground" Value="#C62828"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Status}" Value="NoActual">
-                                                                <Setter Property="Text" Value="--"/>
-                                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                                <Setter Property="Text" Value="NG"/>
+                                                                <Setter Property="Foreground" Value="#C62828"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Status}" Value="NoExpected">
                                                                 <Setter Property="Text" Value="--"/>

@@ -274,6 +274,8 @@ public sealed class ExcelExportService : IExcelExportService
                     case VerificationStatus.NoActual:
                         statusCell.Value = "実測値なし";
                         statusCell.Style.Font.FontColor = XLColor.FromHtml("#E65100");
+                        statusCell.Style.Font.Bold = true;
+                        ws.Range(row, 1, row, 5).Style.Fill.BackgroundColor = MismatchBg;
                         break;
                 }
 

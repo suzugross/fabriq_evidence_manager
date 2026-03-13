@@ -54,5 +54,6 @@ public sealed class VerificationReport
     public bool AllMatch => Items.Count > 0 && Items.All(i => i.Status == VerificationStatus.Match);
 
     /// <summary>Mismatch の件数</summary>
-    public int MismatchCount => Items.Count(i => i.Status == VerificationStatus.Mismatch);
+    public int MismatchCount => Items.Count(i =>
+        i.Status == VerificationStatus.Mismatch || i.Status == VerificationStatus.NoActual);
 }
