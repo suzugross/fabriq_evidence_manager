@@ -107,7 +107,7 @@ public partial class MainWindowViewModel : ObservableObject
             try
             {
                 var report = _verificationService.Verify(pc);
-                if (report.HostlistFound && !report.AllMatch)
+                if (report.HostlistFound && report.MismatchCount > 0)
                     cautions.Add($"hostlist不一致({report.MismatchCount}件)");
             }
             catch { /* 判定失敗時はスキップ */ }

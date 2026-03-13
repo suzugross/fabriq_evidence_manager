@@ -85,7 +85,7 @@ public sealed class EvidenceVerificationService : IEvidenceVerificationService
                     ItemName = $"プリンタ: {expectedPrinter.Name}",
                     Expected = $"{expectedPrinter.Name} (Port: {expectedPrinter.Port})",
                     Actual = $"{matched.Name} (Port: {matched.Port})",
-                    Status = matched.Port.Equals(expectedPrinter.Port, StringComparison.OrdinalIgnoreCase)
+                    Status = NormalizePort(matched.Port).Equals(NormalizePort(expectedPrinter.Port), StringComparison.OrdinalIgnoreCase)
                         ? VerificationStatus.Match
                         : VerificationStatus.Mismatch,
                 });
@@ -111,11 +111,11 @@ public sealed class EvidenceVerificationService : IEvidenceVerificationService
         items.Add(new VerificationItem
         {
             ItemName = "BitLocker (C:)",
-            Expected = "On (FullyEncrypted)",
+            Expected = "On (FullyEncrypted) or EncryptionInProgress",
             Actual = cVolume is not null
                 ? $"{cVolume.ProtectionStatus} ({cVolume.ConversionStatus})"
                 : "(未検出)",
-            Status = cVolume is not null && cVolume.IsProtected
+            Status = cVolume is not null && IsBitLockerAcceptable(cVolume)
                 ? VerificationStatus.Match
                 : cVolume is null
                     ? VerificationStatus.NoActual
@@ -170,6 +170,28 @@ public sealed class EvidenceVerificationService : IEvidenceVerificationService
             return null;
         }
     }
+
+    /// <summary>
+    /// プリンタポート名を正規化する。
+    /// 実測値が "IP_192.168.x.x" 形式の場合、"IP_" プレフィックスを除去して
+    /// hostlist の "192.168.x.x" 表記と一致させる。
+    /// </summary>
+    private static string NormalizePort(string port)
+    {
+        var trimmed = port.Trim();
+        return trimmed.StartsWith("IP_", StringComparison.OrdinalIgnoreCase)
+            ? trimmed[3..]
+            : trimmed;
+    }
+
+    /// <summary>
+    /// BitLocker の状態が許容範囲内かを判定する。
+    /// - ProtectionStatus=On (完全暗号化済み): OK
+    /// - ProtectionStatus=Off かつ ConversionStatus=EncryptionInProgress (暗号化途中): OK
+    /// </summary>
+    private static bool IsBitLockerAcceptable(BitLockerVolumeStatus volume) =>
+        volume.IsProtected
+        || volume.ConversionStatus.Equals("EncryptionInProgress", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 期待値と実測値を比較して VerificationItem を生成する。

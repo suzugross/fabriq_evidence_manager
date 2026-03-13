@@ -166,7 +166,7 @@ public sealed class ExcelExportService : IExcelExportService
                 verifyCell.Value = "対象外";
                 verifyCell.Style.Font.FontColor = XLColor.Gray;
             }
-            else if (report.AllMatch)
+            else if (report.MismatchCount == 0)
             {
                 verifyCell.Value = "OK";
                 verifyCell.Style.Font.FontColor = MatchFont;
