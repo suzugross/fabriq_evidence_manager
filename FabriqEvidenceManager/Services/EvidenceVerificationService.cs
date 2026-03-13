@@ -21,8 +21,21 @@ public sealed class EvidenceVerificationService : IEvidenceVerificationService
         _parser = parser;
     }
 
+    /// <summary>
+    /// 余剰プリンタ検出時に除外するデフォルトプリンタ名。
+    /// OS標準でインストールされるものを部分一致で判定する。
+    /// </summary>
+    private static readonly string[] DefaultPrinterKeywords =
+    [
+        "Microsoft Print to PDF",
+        "Microsoft XPS Document Writer",
+        "OneNote",
+        "Fax",
+        "Send to OneNote",
+    ];
+
     /// <inheritdoc />
-    public VerificationReport Verify(PcEvidence pc)
+    public VerificationReport Verify(PcEvidence pc, EvidenceCheckOptions? options = null)
     {
         // hostlist 未読み込み or 該当PC名なし
         var entry = _hostlist.IsLoaded ? _hostlist.FindByPcName(pc.PcName) : null;
@@ -98,6 +111,33 @@ public sealed class EvidenceVerificationService : IEvidenceVerificationService
                     Expected = $"{expectedPrinter.Name} (Port: {expectedPrinter.Port})",
                     Actual = "(未検出)",
                     Status = VerificationStatus.NoActual,
+                });
+            }
+        }
+
+        // ---- 余剰プリンタ検出 (実機にあるが hostlist にないプリンタ) ----
+        if (options?.CheckExtraPrinters == true && actualPrinters is not null)
+        {
+            var expectedNames = new HashSet<string>(
+                entry.Printers.Select(p => p.Name),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var actual in actualPrinters)
+            {
+                // hostlist に存在するプリンタはスキップ (既にチェック済み)
+                if (expectedNames.Contains(actual.Name))
+                    continue;
+
+                // OS デフォルトプリンタは除外
+                if (IsDefaultPrinter(actual.Name))
+                    continue;
+
+                items.Add(new VerificationItem
+                {
+                    ItemName = $"余剰プリンタ: {actual.Name}",
+                    Expected = "(hostlistに未登録)",
+                    Actual = $"{actual.Name} (Port: {actual.Port})",
+                    Status = VerificationStatus.Mismatch,
                 });
             }
         }
@@ -192,6 +232,13 @@ public sealed class EvidenceVerificationService : IEvidenceVerificationService
     private static bool IsBitLockerAcceptable(BitLockerVolumeStatus volume) =>
         volume.IsProtected
         || volume.ConversionStatus.Equals("EncryptionInProgress", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// OS デフォルトプリンタかどうかを部分一致で判定する。
+    /// </summary>
+    private static bool IsDefaultPrinter(string printerName) =>
+        DefaultPrinterKeywords.Any(keyword =>
+            printerName.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// 期待値と実測値を比較して VerificationItem を生成する。

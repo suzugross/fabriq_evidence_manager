@@ -31,4 +31,8 @@ public sealed partial class EvidenceCheckOptions : ObservableObject
     /// <summary>チェックリストファイルの存在チェック</summary>
     [ObservableProperty]
     private bool _checkChecklist = true;
+
+    /// <summary>余剰プリンタ検出 (hostlistにないプリンタをNG扱い)</summary>
+    [ObservableProperty]
+    private bool _checkExtraPrinters = false;
 }

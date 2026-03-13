@@ -13,5 +13,5 @@ public interface IEvidenceVerificationService
     /// </summary>
     /// <param name="pc">PcEvidence (pc_information パスが必要)</param>
     /// <returns>突合レポート</returns>
-    VerificationReport Verify(PcEvidence pc);
+    VerificationReport Verify(PcEvidence pc, EvidenceCheckOptions? options = null);
 }

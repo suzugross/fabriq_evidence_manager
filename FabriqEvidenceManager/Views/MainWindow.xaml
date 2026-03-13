@@ -343,6 +343,16 @@
                           VerticalAlignment="Center" Margin="0,0,12,0"/>
                 <CheckBox Content="チェックリスト"
                           IsChecked="{Binding CheckOptions.CheckChecklist}"
+                          VerticalAlignment="Center" Margin="0,0,20,0"/>
+
+                <TextBlock Text="|" Foreground="#999999" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Text="突合:"
+                           FontSize="11"
+                           Foreground="#555555"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0"/>
+                <CheckBox Content="余剰プリンタ検出"
+                          IsChecked="{Binding CheckOptions.CheckExtraPrinters}"
                           VerticalAlignment="Center" Margin="0,0,12,0"/>
             </StackPanel>
 

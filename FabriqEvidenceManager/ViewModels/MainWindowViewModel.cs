@@ -65,8 +65,12 @@ public partial class MainWindowViewModel : ObservableObject
         TargetPCsView = CollectionViewSource.GetDefaultView(TargetPCs);
         TargetPCsView.Filter = FilterPcEvidence;
 
-        // エビデンスチェックオプション変更時に全PC再検証
-        CheckOptions.PropertyChanged += (_, _) => RevalidateAllPcs();
+        // エビデンスチェックオプション変更時に全PC再検証 + Caution再評価
+        CheckOptions.PropertyChanged += (_, _) =>
+        {
+            RevalidateAllPcs();
+            EvaluateCautionsForAllPcs();
+        };
 
         // 自動リロードタイマー
         _autoReloadTimer = new DispatcherTimer
@@ -106,7 +110,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             try
             {
-                var report = _verificationService.Verify(pc);
+                var report = _verificationService.Verify(pc, CheckOptions);
                 if (report.HostlistFound && report.MismatchCount > 0)
                     cautions.Add($"hostlist不一致({report.MismatchCount}件)");
             }
@@ -651,7 +655,7 @@ public partial class MainWindowViewModel : ObservableObject
         // hostlist 突合
         try
         {
-            CurrentVerificationReport = _verificationService.Verify(pc);
+            CurrentVerificationReport = _verificationService.Verify(pc, CheckOptions);
         }
         catch (Exception ex)
         {
@@ -818,7 +822,7 @@ public partial class MainWindowViewModel : ObservableObject
             // 突合
             try
             {
-                var report = _verificationService.Verify(pc);
+                var report = _verificationService.Verify(pc, CheckOptions);
                 verificationReports[pc.PcName] = report;
             }
             catch (Exception ex)
