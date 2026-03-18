@@ -55,6 +55,13 @@ public interface IEvidenceParserService
     string ParseHostname(string filePath);
 
     /// <summary>
+    /// 01_SystemInfo.txt からシステム基本情報 (OS名・バージョン・CPU・メモリ) を抽出する。
+    /// </summary>
+    /// <param name="filePath">01_SystemInfo.txt の絶対パス</param>
+    /// <returns>抽出されたシステム情報</returns>
+    SystemInfoData ParseSystemInfo(string filePath);
+
+    /// <summary>
     /// 03_NetworkConfig.txt からネットワーク設定を抽出する。
     /// </summary>
     IReadOnlyList<NetworkInterfaceInfo> ParseNetworkConfig(string filePath);

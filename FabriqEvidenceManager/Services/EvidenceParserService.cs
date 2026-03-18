@@ -325,6 +325,46 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     }
 
     // ================================================================
+    // システム基本情報 (01_SystemInfo.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public SystemInfoData ParseSystemInfo(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        string hostname = "", osName = "", version = "", cpu = "", memory = "";
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            // ヘッダ行・空行をスキップ
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("====") || trimmed.Contains("System Basic Info"))
+                continue;
+
+            if (TryExtractValue(trimmed, "Hostname:", out var h))
+                hostname = h;
+            else if (TryExtractValue(trimmed, "OS Name:", out var o))
+                osName = o;
+            else if (TryExtractValue(trimmed, "Version:", out var v))
+                version = v;
+            else if (TryExtractValue(trimmed, "CPU:", out var c))
+                cpu = c;
+            else if (TryExtractValue(trimmed, "Memory:", out var m))
+                memory = m;
+        }
+
+        return new SystemInfoData
+        {
+            Hostname = hostname,
+            OsName = osName,
+            Version = version,
+            Cpu = cpu,
+            Memory = memory,
+        };
+    }
+
+    // ================================================================
     // ネットワーク設定 (03_NetworkConfig.txt)
     // ================================================================
 

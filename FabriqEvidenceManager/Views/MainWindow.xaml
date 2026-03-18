@@ -276,40 +276,40 @@
                            VerticalAlignment="Center"
                            Margin="10,0,0,0"/>
             </Grid>
-            <!-- ベースライン読み込み -->
+            <!-- ベースラインPC設定 -->
             <Grid Margin="0,6,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0"
-                           Text="Baseline:"
+                           Text="Baseline PC:"
                            FontSize="12" FontWeight="SemiBold"
                            Foreground="#2C2C2C"
                            VerticalAlignment="Center"
                            Margin="0,0,8,0"/>
 
-                <TextBox Grid.Column="1"
-                         Text="{Binding BaselinePath, Mode=OneWay}"
-                         VerticalContentAlignment="Center"
-                         IsReadOnly="True"
-                         FontSize="11"/>
-
-                <Button Grid.Column="2"
-                        Content="CSV 読込..."
-                        Command="{Binding LoadBaselineCommand}"
-                        Margin="6,0,0,0"
-                        FontSize="12"/>
-
-                <TextBlock Grid.Column="3"
+                <TextBlock Grid.Column="1"
                            Text="{Binding BaselineStatusText}"
                            FontSize="11"
                            Foreground="#555555"
-                           VerticalAlignment="Center"
-                           Margin="10,0,0,0"/>
+                           VerticalAlignment="Center"/>
+
+                <Button Grid.Column="2"
+                        Content="選択PCをベースラインに設定"
+                        Command="{Binding SetBaselinePcCommand}"
+                        Margin="6,0,0,0"
+                        FontSize="12"/>
+
+                <Button Grid.Column="3"
+                        Content="クリア"
+                        Command="{Binding ClearBaselineCommand}"
+                        Margin="6,0,0,0"
+                        FontSize="12"/>
             </Grid>
             </StackPanel>
         </GroupBox>
@@ -889,9 +889,214 @@
                             </ItemsControl>
 
                             <!-- ============================================ -->
-                            <!-- セクション: ベースライン突合 -->
+                            <!-- セクション: ベースライン突合 — Windowsバージョン情報 -->
                             <!-- ============================================ -->
-                            <TextBlock Text="BASELINE COMPARISON"
+                            <TextBlock Text="BASELINE — SYSTEM INFO"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,8,0,4"
+                                       Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}"/>
+
+                            <ItemsControl ItemsSource="{Binding CurrentBaselineReport.SystemInfoComparison.Items}"
+                                          Margin="0,0,0,6"
+                                          Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- 判定バッジ -->
+                                            <TextBlock Grid.Column="0" FontSize="9" FontWeight="Bold"
+                                                       Margin="0,0,6,0" MinWidth="28">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="OK"/>
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Text" Value="NG"/>
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="NoActual">
+                                                                <Setter Property="Text" Value="---"/>
+                                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="NoExpected">
+                                                                <Setter Property="Text" Value="---"/>
+                                                                <Setter Property="Foreground" Value="#888888"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- 項目名 -->
+                                            <TextBlock Grid.Column="1" Text="{Binding ItemName}"
+                                                       FontSize="10" Foreground="#333333"
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                            <!-- 期待値 (ベースライン) -->
+                                            <TextBlock Grid.Column="2" Text="{Binding Expected}"
+                                                       FontSize="9" Foreground="#888888"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="4,0,0,0"/>
+
+                                            <!-- 実測値 (不一致時は赤) -->
+                                            <TextBlock Grid.Column="3" FontSize="9" Margin="4,0,0,0"
+                                                       Text="{Binding Actual}"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#888888"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: ベースライン突合 — チェックリスト -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="BASELINE — CHECKLIST"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,8,0,4"
+                                       Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}"/>
+
+                            <!-- OverallStatus 照合 -->
+                            <Grid Margin="0,0,0,2"
+                                  Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" FontSize="9" FontWeight="Bold"
+                                           Margin="0,0,6,0" MinWidth="28">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="OK"/>
+                                            <Setter Property="Foreground" Value="#2E7D32"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CurrentBaselineReport.ChecklistComparison.OverallStatusMatch}" Value="False">
+                                                    <Setter Property="Text" Value="NG"/>
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <TextBlock Grid.Column="1" Text="全体判定"
+                                           FontSize="10" Foreground="#333333"/>
+
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding CurrentBaselineReport.ChecklistComparison.BaselineOverallStatus}"
+                                           FontSize="9" Foreground="#888888"
+                                           Margin="4,0,0,0"/>
+
+                                <TextBlock Grid.Column="3" FontSize="9" Margin="4,0,0,0"
+                                           Text="{Binding CurrentBaselineReport.ChecklistComparison.ActualOverallStatus}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#888888"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CurrentBaselineReport.ChecklistComparison.OverallStatusMatch}" Value="False">
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <!-- VerifyItems 照合 -->
+                            <ItemsControl ItemsSource="{Binding CurrentBaselineReport.ChecklistComparison.VerifyItemComparisons}"
+                                          Margin="0,0,0,6"
+                                          Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- 判定バッジ -->
+                                            <TextBlock Grid.Column="0" FontSize="9" FontWeight="Bold"
+                                                       Margin="0,0,6,0" MinWidth="28">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="OK"/>
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Text" Value="NG"/>
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="NoActual">
+                                                                <Setter Property="Text" Value="---"/>
+                                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- 項目名 -->
+                                            <TextBlock Grid.Column="1" Text="{Binding ItemName}"
+                                                       FontSize="10" Foreground="#333333"
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                            <!-- 期待値 (ベースライン) -->
+                                            <TextBlock Grid.Column="2" Text="{Binding Expected}"
+                                                       FontSize="9" Foreground="#888888"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="4,0,0,0"/>
+
+                                            <!-- 実測値 -->
+                                            <TextBlock Grid.Column="3" FontSize="9" Margin="4,0,0,0"
+                                                       Text="{Binding Actual}"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#888888"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: ベースライン突合 — 実行サマリ -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="BASELINE — EXECUTION SUMMARY"
                                        FontSize="10" FontWeight="Bold"
                                        Foreground="#757B82"
                                        Margin="0,8,0,4"

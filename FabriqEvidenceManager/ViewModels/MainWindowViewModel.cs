@@ -129,18 +129,14 @@ public partial class MainWindowViewModel : ObservableObject
             catch { /* 判定失敗時はスキップ */ }
         }
 
-        // ベースライン突合
-        if (_baselineService.IsLoaded && pc.ExportHistoryFilePath is not null && File.Exists(pc.ExportHistoryFilePath))
+        // ベースライン突合 (全カテゴリ: 実行サマリ + SystemInfo + チェックリスト)
+        if (_baselineService.IsLoaded)
         {
             try
             {
-                var history = _checklistParserService.ParseExportHistory(pc.ExportHistoryFilePath);
-                if (history.Count > 0)
-                {
-                    var baseline = _baselineService.Compare(pc.PcName, history);
-                    if (baseline.DifferenceCount > 0)
-                        cautions.Add($"ベースライン差異({baseline.DifferenceCount}件)");
-                }
+                var baseline = _baselineService.CompareAll(pc);
+                if (baseline.DifferenceCount > 0)
+                    cautions.Add($"ベースライン差異({baseline.DifferenceCount}件)");
             }
             catch { /* 判定失敗時はスキップ */ }
         }
@@ -364,29 +360,27 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    /// <summary>パイロット実行のベースライン CSV を選択して読み込む。</summary>
+    /// <summary>選択中のPCをベースラインPCとして設定する。</summary>
     [RelayCommand]
-    private void LoadBaseline()
+    private void SetBaselinePc()
     {
-        var dialog = new OpenFileDialog
+        if (SelectedPc is null)
         {
-            Title = "ベースライン (パイロット実行の export_history CSV) を選択",
-            Filter = "CSV ファイル (*.csv)|*.csv|全てのファイル (*.*)|*.*",
-        };
-
-        if (!string.IsNullOrEmpty(BaselinePath) && File.Exists(BaselinePath))
-            dialog.InitialDirectory = Path.GetDirectoryName(BaselinePath);
-
-        if (dialog.ShowDialog() != true)
+            MessageBox.Show(
+                "ベースラインに設定するPCを一覧から選択してください。",
+                "ベースラインPC設定",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
             return;
+        }
 
         try
         {
-            var count = _baselineService.Load(dialog.FileName);
-            BaselinePath = dialog.FileName;
-            BaselineStatusText = $"{count}モジュール読込済";
+            _baselineService.LoadFromPc(SelectedPc);
+            BaselinePath = SelectedPc.PcName;
+            BaselineStatusText = $"ベースラインPC: {SelectedPc.PcName}";
             OnPropertyChanged(nameof(IsBaselineLoaded));
-            StatusMessage = $"ベースラインを読み込みました ({count} モジュール)。";
+            StatusMessage = $"ベースラインPCを設定しました: {SelectedPc.PcName}";
 
             // 全PCの Caution 再判定 + 選択PC のプレビュー更新
             EvaluateCautionsForAllPcs();
@@ -395,14 +389,29 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            BaselineStatusText = "読込エラー";
-            StatusMessage = $"ベースライン読込エラー: {ex.Message}";
+            BaselineStatusText = "設定エラー";
+            StatusMessage = $"ベースラインPC設定エラー: {ex.Message}";
             MessageBox.Show(
-                $"ベースライン CSV の読み込みに失敗しました。\n\n{ex.Message}",
+                $"ベースラインPCの設定に失敗しました。\n\n{ex.Message}",
                 "ベースラインエラー",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>ベースラインをクリアする。</summary>
+    [RelayCommand]
+    private void ClearBaseline()
+    {
+        _baselineService.Clear();
+        BaselinePath = string.Empty;
+        BaselineStatusText = "未設定";
+        OnPropertyChanged(nameof(IsBaselineLoaded));
+        StatusMessage = "ベースラインをクリアしました。";
+
+        EvaluateCautionsForAllPcs();
+        if (SelectedPc is not null)
+            UpdateVerificationInfo(SelectedPc);
     }
 
     /// <summary>フォルダ選択ダイアログを開き、EvidenceRootPath にセットして自動で読み込みを開始する。</summary>
@@ -699,12 +708,12 @@ public partial class MainWindowViewModel : ObservableObject
             CurrentExportHistory = null;
         }
 
-        // ベースライン突合
-        if (_baselineService.IsLoaded && CurrentExportHistory is { Count: > 0 })
+        // ベースライン突合 (全カテゴリ: 実行サマリ + SystemInfo + チェックリスト)
+        if (_baselineService.IsLoaded)
         {
             try
             {
-                CurrentBaselineReport = _baselineService.Compare(pc.PcName, CurrentExportHistory);
+                CurrentBaselineReport = _baselineService.CompareAll(pc);
             }
             catch (Exception ex)
             {
@@ -850,23 +859,23 @@ public partial class MainWindowViewModel : ObservableObject
                 {
                     var history = _checklistParserService.ParseExportHistory(pc.ExportHistoryFilePath);
                     exportHistories[pc.PcName] = history;
-
-                    // ベースライン突合
-                    if (_baselineService.IsLoaded && history.Count > 0)
-                    {
-                        try
-                        {
-                            baselineReports[pc.PcName] = _baselineService.Compare(pc.PcName, history);
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[Export Baseline] {pc.PcName}: {ex.Message}");
-                        }
-                    }
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"[Export History] {pc.PcName}: {ex.Message}");
+                }
+            }
+
+            // ベースライン突合 (全カテゴリ)
+            if (_baselineService.IsLoaded)
+            {
+                try
+                {
+                    baselineReports[pc.PcName] = _baselineService.CompareAll(pc);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Export Baseline] {pc.PcName}: {ex.Message}");
                 }
             }
         }

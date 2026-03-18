@@ -21,5 +21,5 @@ evidence本体の構造や仕様を深く理解した上で、それらに一切
 
 ## Build & Publish
 - ビルド: `dotnet build` (プロジェクトルート)
-- パブリッシュ先: 常に `Desktop\publish_fabriq_evidence_manager\` に出力
-- パブリッシュコマンド: `dotnet publish FabriqEvidenceManager/FabriqEvidenceManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o <Desktop>\publish_fabriq_evidence_manager`
+- パブリッシュ先: 常に `E:\publish_fabriq_evidence_manager\` に出力
+- パブリッシュコマンド: `dotnet publish FabriqEvidenceManager/FabriqEvidenceManager.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o E:\publish_fabriq_evidence_manager`

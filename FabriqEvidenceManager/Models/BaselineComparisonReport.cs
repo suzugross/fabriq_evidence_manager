@@ -42,18 +42,34 @@ public enum BaselineMatchStatus
 
 /// <summary>
 /// 1台のPCに対するベースライン突合結果全体。
+/// 実行サマリ (Items) に加えて、SystemInfo・チェックリストの照合結果を含む。
 /// </summary>
 public sealed class BaselineComparisonReport
 {
     /// <summary>対象PC名</summary>
     public required string PcName { get; init; }
 
-    /// <summary>突合結果の項目一覧</summary>
+    /// <summary>実行サマリ突合結果の項目一覧 (ModuleName × Status)</summary>
     public List<BaselineComparisonItem> Items { get; init; } = [];
 
-    /// <summary>全項目が Match かどうか</summary>
+    /// <summary>システム基本情報の照合結果 (OS名・バージョン・CPU・メモリ)</summary>
+    public SystemInfoComparisonResult? SystemInfoComparison { get; init; }
+
+    /// <summary>チェックリストの照合結果 (OverallStatus + VerifyItems)</summary>
+    public ChecklistComparisonResult? ChecklistComparison { get; init; }
+
+    /// <summary>実行サマリが全項目 Match かどうか</summary>
     public bool AllMatch => Items.Count > 0 && Items.All(i => i.MatchStatus == BaselineMatchStatus.Match);
 
-    /// <summary>不一致の件数 (Mismatch + MissingInActual + ExtraInActual)</summary>
-    public int DifferenceCount => Items.Count(i => i.MatchStatus != BaselineMatchStatus.Match);
+    /// <summary>全カテゴリの不一致件数合計</summary>
+    public int DifferenceCount =>
+        Items.Count(i => i.MatchStatus != BaselineMatchStatus.Match)
+        + (SystemInfoComparison?.MismatchCount ?? 0)
+        + (ChecklistComparison?.MismatchCount ?? 0);
+
+    /// <summary>全カテゴリが完全一致かどうか</summary>
+    public bool AllCategoriesMatch =>
+        AllMatch
+        && (SystemInfoComparison?.AllMatch ?? true)
+        && (ChecklistComparison?.AllMatch ?? true);
 }
