@@ -1094,6 +1094,105 @@
                             </ItemsControl>
 
                             <!-- ============================================ -->
+                            <!-- セクション: ベースライン突合 — インストール済みアプリ -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="BASELINE — INSTALLED APPS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,8,0,4"
+                                       Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}"/>
+
+                            <!-- サマリ行: 一致件数 / ベースライン総数 / 対象PC総数 -->
+                            <TextBlock FontSize="9" Foreground="#555555" Margin="0,0,0,4"
+                                       Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="一致: {0}件 / ベースライン: {1}件 / 対象PC: {2}件 / 差分: {3}件">
+                                        <Binding Path="CurrentBaselineReport.InstalledAppsComparison.MatchCount" FallbackValue="0"/>
+                                        <Binding Path="CurrentBaselineReport.InstalledAppsComparison.TotalBaselineCount" FallbackValue="0"/>
+                                        <Binding Path="CurrentBaselineReport.InstalledAppsComparison.TotalActualCount" FallbackValue="0"/>
+                                        <Binding Path="CurrentBaselineReport.InstalledAppsComparison.MismatchCount" FallbackValue="0"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+
+                            <!-- 差分0件の場合 -->
+                            <TextBlock Text="すべてのアプリが一致しています"
+                                       FontSize="9" Foreground="#2E7D32" FontWeight="Bold"
+                                       Margin="0,0,0,4"
+                                       Visibility="{Binding CurrentBaselineReport.InstalledAppsComparison.AllMatch, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
+
+                            <!-- 差分リスト (Mismatch / Missing のみ) -->
+                            <ItemsControl ItemsSource="{Binding CurrentBaselineReport.InstalledAppsComparison.Items}"
+                                          Margin="0,0,0,6"
+                                          Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="80"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- 判定バッジ -->
+                                            <TextBlock Grid.Column="0" FontSize="9" FontWeight="Bold"
+                                                       Margin="0,0,6,0" MinWidth="28">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="OK"/>
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Text" Value="NG"/>
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="NoActual">
+                                                                <Setter Property="Text" Value="---"/>
+                                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="NoExpected">
+                                                                <Setter Property="Text" Value="NEW"/>
+                                                                <Setter Property="Foreground" Value="#1565C0"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- アプリ名 -->
+                                            <TextBlock Grid.Column="1" Text="{Binding ItemName}"
+                                                       FontSize="10" Foreground="#333333"
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                            <!-- 期待値 (ベースラインバージョン) -->
+                                            <TextBlock Grid.Column="2" Text="{Binding Expected}"
+                                                       FontSize="9" Foreground="#888888"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="4,0,0,0"/>
+
+                                            <!-- 実測値 -->
+                                            <TextBlock Grid.Column="3" FontSize="9" Margin="4,0,0,0"
+                                                       Text="{Binding Actual}"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#888888"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- ============================================ -->
                             <!-- セクション: ベースライン突合 — 実行サマリ -->
                             <!-- ============================================ -->
                             <TextBlock Text="BASELINE — EXECUTION SUMMARY"

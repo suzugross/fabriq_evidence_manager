@@ -61,6 +61,12 @@ public static class EvidenceConstants
     /// <summary>シリアルナンバーログ</summary>
     public const string FileSerialNumber = "07_SerialNumber.txt";
 
+    /// <summary>デスクトップアプリ一覧CSV</summary>
+    public const string FileDesktopApps = "08_DesktopApps.csv";
+
+    /// <summary>ストアアプリ一覧CSV</summary>
+    public const string FileStoreApps = "08_StoreApps.csv";
+
     // ================================================================
     // 出力ファイル / ディレクトリ命名
     // ================================================================

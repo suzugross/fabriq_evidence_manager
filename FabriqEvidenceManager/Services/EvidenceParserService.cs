@@ -550,6 +550,123 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         };
 
     // ================================================================
+    // インストール済みアプリ (08_DesktopApps.csv / 08_StoreApps.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<InstalledAppEntry> ParseDesktopApps(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<InstalledAppEntry>();
+
+        // 先頭行はヘッダ (Name,Version,Publisher,InstallDate)
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new InstalledAppEntry
+            {
+                Name = fields[0],
+                Version = fields.Count > 1 ? fields[1] : string.Empty,
+                Publisher = fields.Count > 2 ? fields[2] : string.Empty,
+                InstallDate = fields.Count > 3 ? fields[3] : string.Empty,
+                Source = InstalledAppSource.Desktop,
+            });
+        }
+
+        return results;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<InstalledAppEntry> ParseStoreApps(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<InstalledAppEntry>();
+
+        // 先頭行はヘッダ (Name,Version,Publisher)
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new InstalledAppEntry
+            {
+                Name = fields[0],
+                Version = fields.Count > 1 ? fields[1] : string.Empty,
+                Publisher = fields.Count > 2 ? fields[2] : string.Empty,
+                Source = InstalledAppSource.Store,
+            });
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// ダブルクォート付きCSV行をフィールドに分割する。
+    /// アプリ名にカンマが含まれる場合にも対応。
+    /// </summary>
+    private static List<string> ParseCsvLine(string line)
+    {
+        var fields = new List<string>();
+        var sb = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    // エスケープされたダブルクォート ("") かどうか
+                    if (i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        sb.Append('"');
+                        i++; // 次の " をスキップ
+                    }
+                    else
+                    {
+                        inQuotes = false;
+                    }
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            else
+            {
+                if (c == '"')
+                {
+                    inQuotes = true;
+                }
+                else if (c == ',')
+                {
+                    fields.Add(sb.ToString());
+                    sb.Clear();
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+        }
+
+        fields.Add(sb.ToString());
+        return fields;
+    }
+
+    // ================================================================
     // ファイルI/O (BOM付きUTF-8)
     // ================================================================
 

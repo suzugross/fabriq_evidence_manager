@@ -58,6 +58,9 @@ public sealed class BaselineComparisonReport
     /// <summary>チェックリストの照合結果 (OverallStatus + VerifyItems)</summary>
     public ChecklistComparisonResult? ChecklistComparison { get; init; }
 
+    /// <summary>インストール済みアプリの照合結果</summary>
+    public InstalledAppsComparisonResult? InstalledAppsComparison { get; init; }
+
     /// <summary>実行サマリが全項目 Match かどうか</summary>
     public bool AllMatch => Items.Count > 0 && Items.All(i => i.MatchStatus == BaselineMatchStatus.Match);
 
@@ -65,11 +68,13 @@ public sealed class BaselineComparisonReport
     public int DifferenceCount =>
         Items.Count(i => i.MatchStatus != BaselineMatchStatus.Match)
         + (SystemInfoComparison?.MismatchCount ?? 0)
-        + (ChecklistComparison?.MismatchCount ?? 0);
+        + (ChecklistComparison?.MismatchCount ?? 0)
+        + (InstalledAppsComparison?.MismatchCount ?? 0);
 
     /// <summary>全カテゴリが完全一致かどうか</summary>
     public bool AllCategoriesMatch =>
         AllMatch
         && (SystemInfoComparison?.AllMatch ?? true)
-        && (ChecklistComparison?.AllMatch ?? true);
+        && (ChecklistComparison?.AllMatch ?? true)
+        && (InstalledAppsComparison?.AllMatch ?? true);
 }

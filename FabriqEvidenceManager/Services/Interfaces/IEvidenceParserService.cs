@@ -76,4 +76,18 @@ public interface IEvidenceParserService
     /// 05_BitLocker.txt からボリューム単位のBitLockerステータスを抽出する。
     /// </summary>
     IReadOnlyList<BitLockerVolumeStatus> ParseBitLockerStatus(string filePath);
+
+    // ================================================================
+    // インストール済みアプリ一覧パーサー
+    // ================================================================
+
+    /// <summary>
+    /// 08_DesktopApps.csv からデスクトップアプリ一覧を抽出する。
+    /// </summary>
+    IReadOnlyList<InstalledAppEntry> ParseDesktopApps(string filePath);
+
+    /// <summary>
+    /// 08_StoreApps.csv からストアアプリ一覧を抽出する。
+    /// </summary>
+    IReadOnlyList<InstalledAppEntry> ParseStoreApps(string filePath);
 }

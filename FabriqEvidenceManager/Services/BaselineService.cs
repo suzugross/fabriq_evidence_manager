@@ -27,6 +27,9 @@ public sealed class BaselineService : IBaselineService
     /// <summary>ベースラインPCのチェックリスト結果</summary>
     private ChecklistResult? _baselineChecklist;
 
+    /// <summary>ベースラインPCのインストール済みアプリ (Desktop + Store 統合)</summary>
+    private List<InstalledAppEntry>? _baselineInstalledApps;
+
     /// <inheritdoc />
     public string? BaselinePcName { get; private set; }
 
@@ -37,7 +40,7 @@ public sealed class BaselineService : IBaselineService
     }
 
     /// <inheritdoc />
-    public bool IsLoaded => _baselineEntries.Count > 0 || _baselineSystemInfo is not null;
+    public bool IsLoaded => _baselineEntries.Count > 0 || _baselineSystemInfo is not null || _baselineInstalledApps is not null;
 
     /// <inheritdoc />
     public int Load(string csvFilePath)
@@ -73,6 +76,9 @@ public sealed class BaselineService : IBaselineService
 
         // 3. チェックリスト HTML
         _baselineChecklist = TryParseChecklist(baselinePc.ChecklistFilePath);
+
+        // 4. インストール済みアプリ (08_DesktopApps.csv + 08_StoreApps.csv)
+        _baselineInstalledApps = TryParseInstalledApps(baselinePc.PcInformationDirectoryPath);
     }
 
     /// <inheritdoc />
@@ -82,6 +88,7 @@ public sealed class BaselineService : IBaselineService
         _baselineMap.Clear();
         _baselineSystemInfo = null;
         _baselineChecklist = null;
+        _baselineInstalledApps = null;
         BaselinePcName = null;
     }
 
@@ -168,12 +175,16 @@ public sealed class BaselineService : IBaselineService
         // 3. チェックリスト照合
         var checklistComparison = CompareChecklist(targetPc);
 
+        // 4. インストール済みアプリ照合
+        var installedAppsComparison = CompareInstalledApps(targetPc);
+
         return new BaselineComparisonReport
         {
             PcName = targetPc.PcName,
             Items = items,
             SystemInfoComparison = sysInfoComparison,
             ChecklistComparison = checklistComparison,
+            InstalledAppsComparison = installedAppsComparison,
         };
     }
 
@@ -257,6 +268,87 @@ public sealed class BaselineService : IBaselineService
     }
 
     // ================================================================
+    // インストール済みアプリ照合
+    // ================================================================
+
+    private InstalledAppsComparisonResult? CompareInstalledApps(PcEvidence targetPc)
+    {
+        if (_baselineInstalledApps is null)
+            return null;
+
+        var actualApps = TryParseInstalledApps(targetPc.PcInformationDirectoryPath);
+        if (actualApps is null)
+            return null;
+
+        // Name (case-insensitive) をキーに辞書化
+        var baselineMap = new Dictionary<string, InstalledAppEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var app in _baselineInstalledApps)
+            baselineMap[app.Name] = app; // 同名アプリは後勝ち
+
+        var actualMap = new Dictionary<string, InstalledAppEntry>(StringComparer.OrdinalIgnoreCase);
+        foreach (var app in actualApps)
+            actualMap[app.Name] = app;
+
+        var diffItems = new List<VerificationItem>();
+        int matchCount = 0;
+
+        // ベースライン側の各アプリを基準に比較
+        foreach (var (name, baseline) in baselineMap)
+        {
+            if (actualMap.TryGetValue(name, out var actual))
+            {
+                if (baseline.Version.Equals(actual.Version, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchCount++;
+                }
+                else
+                {
+                    diffItems.Add(new VerificationItem
+                    {
+                        ItemName = name,
+                        Expected = baseline.Version,
+                        Actual = actual.Version,
+                        Status = VerificationStatus.Mismatch,
+                    });
+                }
+            }
+            else
+            {
+                diffItems.Add(new VerificationItem
+                {
+                    ItemName = name,
+                    Expected = baseline.Version,
+                    Actual = "(未検出)",
+                    Status = VerificationStatus.NoActual,
+                });
+            }
+        }
+
+        // 対象PCにのみ存在するアプリ
+        foreach (var (name, actual) in actualMap)
+        {
+            if (!baselineMap.ContainsKey(name))
+            {
+                diffItems.Add(new VerificationItem
+                {
+                    ItemName = name,
+                    Expected = "(ベースラインなし)",
+                    Actual = actual.Version,
+                    Status = VerificationStatus.NoExpected,
+                });
+            }
+        }
+
+        return new InstalledAppsComparisonResult
+        {
+            Items = diffItems,
+            TotalBaselineCount = baselineMap.Count,
+            TotalActualCount = actualMap.Count,
+            MatchCount = matchCount,
+        };
+    }
+
+    // ================================================================
     // ヘルパー
     // ================================================================
 
@@ -303,6 +395,42 @@ public sealed class BaselineService : IBaselineService
             System.Diagnostics.Debug.WriteLine($"[Baseline Skip] SystemInfo: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>pc_information ディレクトリから DesktopApps + StoreApps を統合パースする。失敗時は null。</summary>
+    private List<InstalledAppEntry>? TryParseInstalledApps(string? pcInfoDir)
+    {
+        if (pcInfoDir is null) return null;
+
+        var desktopPath = Path.Combine(pcInfoDir, EvidenceConstants.FileDesktopApps);
+        var storePath = Path.Combine(pcInfoDir, EvidenceConstants.FileStoreApps);
+
+        if (!File.Exists(desktopPath) && !File.Exists(storePath))
+            return null;
+
+        var combined = new List<InstalledAppEntry>();
+
+        try
+        {
+            if (File.Exists(desktopPath))
+                combined.AddRange(_parser.ParseDesktopApps(desktopPath));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Baseline Skip] DesktopApps: {ex.Message}");
+        }
+
+        try
+        {
+            if (File.Exists(storePath))
+                combined.AddRange(_parser.ParseStoreApps(storePath));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Baseline Skip] StoreApps: {ex.Message}");
+        }
+
+        return combined.Count > 0 ? combined : null;
     }
 
     /// <summary>チェックリスト HTML をパースする。失敗時は null。</summary>
