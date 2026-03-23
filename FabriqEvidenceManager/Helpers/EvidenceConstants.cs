@@ -46,26 +46,59 @@ public static class EvidenceConstants
     /// <summary>システム基本情報ログ</summary>
     public const string FileSystemInfo = "01_SystemInfo.txt";
 
-    /// <summary>ネットワーク設定ログ</summary>
-    public const string FileNetworkConfig = "03_NetworkConfig.txt";
+    /// <summary>ネットワーク設定CSV</summary>
+    public const string FileNetworkConfig = "06_NetworkConfig.csv";
 
-    /// <summary>プリンタ一覧ログ</summary>
-    public const string FilePrinters = "04_Printers.txt";
+    /// <summary>プリンタ一覧CSV</summary>
+    public const string FilePrinters = "07_Printers.csv";
 
     /// <summary>BitLockerステータスログ</summary>
-    public const string FileBitLockerStatus = "05_BitLocker.txt";
+    public const string FileBitLockerStatus = "08_BitLocker.txt";
 
-    /// <summary>MACアドレスログ</summary>
-    public const string FileMacAddress = "06_MacAddress.txt";
+    /// <summary>MACアドレスCSV</summary>
+    public const string FileMacAddress = "09_MacAddress.csv";
 
     /// <summary>シリアルナンバーログ</summary>
-    public const string FileSerialNumber = "07_SerialNumber.txt";
+    public const string FileSerialNumber = "10_SerialNumber.txt";
 
     /// <summary>デスクトップアプリ一覧CSV</summary>
-    public const string FileDesktopApps = "08_DesktopApps.csv";
+    public const string FileDesktopApps = "11_DesktopApps.csv";
 
     /// <summary>ストアアプリ一覧CSV</summary>
-    public const string FileStoreApps = "08_StoreApps.csv";
+    public const string FileStoreApps = "11_StoreApps.csv";
+
+    /// <summary>ローカルユーザー一覧CSV</summary>
+    public const string FileLocalUsers = "02_LocalUsers.csv";
+
+    /// <summary>ローカルグループ一覧CSV</summary>
+    public const string FileLocalGroups = "03_LocalGroups.csv";
+
+    /// <summary>ローカルグループメンバーCSV</summary>
+    public const string FileLocalGroupMembers = "04_LocalGroupMembers.csv";
+
+    /// <summary>ドメイン参加状態ログ</summary>
+    public const string FileDomainStatus = "05_DomainStatus.txt";
+
+    /// <summary>ドメインユーザーCSV (ドメイン参加時)</summary>
+    public const string FileDomainUsers = "05_DomainUsers.csv";
+
+    /// <summary>ドメインユーザーCSV (非ドメイン参加時のサンプル)</summary>
+    public const string FileDomainUsersSample = "05_DomainUsers_sample.csv";
+
+    /// <summary>ドメイングループCSV (ドメイン参加時)</summary>
+    public const string FileDomainGroups = "05_DomainGroups.csv";
+
+    /// <summary>ドメイングループCSV (非ドメイン参加時のサンプル)</summary>
+    public const string FileDomainGroupsSample = "05_DomainGroups_sample.csv";
+
+    /// <summary>ファイアウォールプロファイルCSV</summary>
+    public const string FileFirewallProfiles = "12_FirewallProfiles.csv";
+
+    /// <summary>ファイアウォールルールCSV</summary>
+    public const string FileFirewallRules = "12_FirewallRules.csv";
+
+    /// <summary>Windowsオプション機能CSV</summary>
+    public const string FileOptionalFeatures = "13_OptionalFeatures.csv";
 
     // ================================================================
     // 出力ファイル / ディレクトリ命名

@@ -110,6 +110,41 @@ public sealed class ExcelExportService : IExcelExportService
             WriteBaselineSheet(workbook, pcEvidences, options.BaselineReports);
         }
 
+        // ---- Sheet 6: ユーザー・グループ ----
+        if (pcEvidences.Any(pc => pc.LocalUsers.Count > 0 || pc.LocalGroups.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteUserGroupSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 7: ドメイン状態 ----
+        if (pcEvidences.Any(pc => pc.DomainStatus is not null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteDomainStatusSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 8: FWプロファイル ----
+        if (pcEvidences.Any(pc => pc.FirewallProfiles.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteFirewallProfileSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 9: FWルール ----
+        if (pcEvidences.Any(pc => pc.FirewallRules.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteFirewallRuleSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 10: オプション機能 ----
+        if (pcEvidences.Any(pc => pc.OptionalFeatures.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteOptionalFeatureSheet(workbook, pcEvidences);
+        }
+
         workbook.SaveAs(outputFilePath);
         return Task.CompletedTask;
     }
@@ -452,6 +487,211 @@ public sealed class ExcelExportService : IExcelExportService
         }
 
         ApplyStyles(ws, row - 2, 6);
+    }
+
+    // ================================================================
+    // Sheet 6: ユーザー・グループ
+    // ================================================================
+
+    private static readonly XLColor UserGroupHeaderBg = XLColor.FromHtml("#00695C"); // ティール
+
+    private static void WriteUserGroupSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("ユーザー・グループ");
+
+        // --- ローカルユーザー セクション ---
+        SetHeaderCell(ws, 1, 1, "PC名", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 2, "種別", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 3, "名前", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 4, "有効", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 5, "フルネーム", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 6, "説明", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 7, "ソース", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 8, "最終ログオン", UserGroupHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var user in pc.LocalUsers)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = "ユーザー";
+                ws.Cell(row, 3).Value = user.Name;
+                ws.Cell(row, 4).Value = user.Enabled ? "有効" : "無効";
+                if (!user.Enabled) ws.Cell(row, 4).Style.Font.FontColor = XLColor.Gray;
+                ws.Cell(row, 5).Value = user.FullName;
+                ws.Cell(row, 6).Value = user.Description;
+                ws.Cell(row, 7).Value = user.PrincipalSource;
+                ws.Cell(row, 8).Value = user.LastLogon;
+                row++;
+            }
+
+            foreach (var group in pc.LocalGroups)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = "グループ";
+                ws.Cell(row, 3).Value = group.Name;
+                ws.Cell(row, 4).Value = "";
+                ws.Cell(row, 5).Value = "";
+                ws.Cell(row, 6).Value = group.Description;
+                row++;
+            }
+
+            foreach (var member in pc.LocalGroupMembers)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = "メンバー";
+                ws.Cell(row, 3).Value = $"{member.GroupName} → {member.MemberName}";
+                ws.Cell(row, 4).Value = "";
+                ws.Cell(row, 5).Value = member.ObjectClass;
+                ws.Cell(row, 6).Value = "";
+                ws.Cell(row, 7).Value = member.PrincipalSource;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 8);
+    }
+
+    // ================================================================
+    // Sheet 7: ドメイン状態
+    // ================================================================
+
+    private static readonly XLColor DomainHeaderBg = XLColor.FromHtml("#37474F"); // ダークグレー
+
+    private static void WriteDomainStatusSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("ドメイン状態");
+
+        SetHeaderCell(ws, 1, 1, "PC名", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 2, "PartOfDomain", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 3, "ドメイン(WORKGROUP)", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 4, "ドメインロール", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 5, "現在のユーザー", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 6, "AzureAD参加", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 7, "ドメイン参加", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 8, "ドメイン名", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 9, "テナント名", DomainHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (pc.DomainStatus is null) continue;
+            ws.Cell(row, 1).Value = pc.PcName;
+            ws.Cell(row, 2).Value = pc.DomainStatus.PartOfDomain ? "YES" : "NO";
+            ws.Cell(row, 3).Value = pc.DomainStatus.Domain;
+            ws.Cell(row, 4).Value = pc.DomainStatus.DomainRole;
+            ws.Cell(row, 5).Value = pc.DomainStatus.CurrentUser;
+            ws.Cell(row, 6).Value = pc.DomainStatus.AzureAdJoined ? "YES" : "NO";
+            ws.Cell(row, 7).Value = pc.DomainStatus.DomainJoined ? "YES" : "NO";
+            ws.Cell(row, 8).Value = pc.DomainStatus.DomainName;
+            ws.Cell(row, 9).Value = pc.DomainStatus.TenantName;
+            row++;
+        }
+
+        ApplyStyles(ws, row - 2, 9);
+    }
+
+    // ================================================================
+    // Sheet 8: FWプロファイル
+    // ================================================================
+
+    private static readonly XLColor FwHeaderBg = XLColor.FromHtml("#D84315"); // ディープオレンジ
+
+    private static void WriteFirewallProfileSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("FWプロファイル");
+
+        SetHeaderCell(ws, 1, 1, "PC名", FwHeaderBg);
+        SetHeaderCell(ws, 1, 2, "プロファイル", FwHeaderBg);
+        SetHeaderCell(ws, 1, 3, "有効", FwHeaderBg);
+        SetHeaderCell(ws, 1, 4, "受信デフォルト", FwHeaderBg);
+        SetHeaderCell(ws, 1, 5, "送信デフォルト", FwHeaderBg);
+        SetHeaderCell(ws, 1, 6, "ログファイル", FwHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var profile in pc.FirewallProfiles)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = profile.Name;
+                ws.Cell(row, 3).Value = profile.Enabled ? "有効" : "無効";
+                ws.Cell(row, 4).Value = profile.DefaultInboundAction;
+                ws.Cell(row, 5).Value = profile.DefaultOutboundAction;
+                ws.Cell(row, 6).Value = profile.LogFileName;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 6);
+    }
+
+    // ================================================================
+    // Sheet 9: FWルール
+    // ================================================================
+
+    private static void WriteFirewallRuleSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("FWルール");
+
+        SetHeaderCell(ws, 1, 1, "PC名", FwHeaderBg);
+        SetHeaderCell(ws, 1, 2, "ルール名", FwHeaderBg);
+        SetHeaderCell(ws, 1, 3, "有効", FwHeaderBg);
+        SetHeaderCell(ws, 1, 4, "方向", FwHeaderBg);
+        SetHeaderCell(ws, 1, 5, "アクション", FwHeaderBg);
+        SetHeaderCell(ws, 1, 6, "プロファイル", FwHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var rule in pc.FirewallRules)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = rule.DisplayName;
+                ws.Cell(row, 3).Value = rule.Enabled ? "有効" : "無効";
+                ws.Cell(row, 4).Value = rule.Direction;
+                ws.Cell(row, 5).Value = rule.Action;
+                ws.Cell(row, 6).Value = rule.Profile;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 6);
+    }
+
+    // ================================================================
+    // Sheet 10: オプション機能
+    // ================================================================
+
+    private static readonly XLColor FeatureHeaderBg = XLColor.FromHtml("#6A1B9A"); // パープル
+
+    private static void WriteOptionalFeatureSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("オプション機能");
+
+        SetHeaderCell(ws, 1, 1, "PC名", FeatureHeaderBg);
+        SetHeaderCell(ws, 1, 2, "機能名", FeatureHeaderBg);
+        SetHeaderCell(ws, 1, 3, "状態", FeatureHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var feature in pc.OptionalFeatures)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = feature.FeatureName;
+                var stateCell = ws.Cell(row, 3);
+                stateCell.Value = feature.State;
+                if (feature.State.Equals("Enabled", StringComparison.OrdinalIgnoreCase))
+                    stateCell.Style.Font.FontColor = MatchFont;
+                else
+                    stateCell.Style.Font.FontColor = XLColor.Gray;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 3);
     }
 
     // ================================================================

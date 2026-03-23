@@ -666,6 +666,278 @@
                             </Border>
 
                             <!-- ============================================ -->
+                            <!-- セクション: ドメイン参加状態 -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="DOMAIN STATUS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,16,0,6"
+                                       Visibility="{Binding HasDomainStatus, Converter={StaticResource BoolToVis}}"/>
+                            <StackPanel Margin="0,0,0,4"
+                                        Visibility="{Binding HasDomainStatus, Converter={StaticResource BoolToVis}}">
+                                <!-- ヘッダーセクション: PartOfDomain / Domain / DomainRole / CurrentUser -->
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="ドメイン所属:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" FontSize="11">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="NO"/>
+                                                <Setter Property="Foreground" Value="#666666"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedPc.DomainStatus.PartOfDomain}" Value="True">
+                                                        <Setter Property="Text" Value="YES"/>
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="ドメイン:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedPc.DomainStatus.Domain}" FontSize="11"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="ドメインロール:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedPc.DomainStatus.DomainRole}" FontSize="11"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="現在のユーザー:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedPc.DomainStatus.CurrentUser}" FontSize="11" FontFamily="Consolas"/>
+                                </Grid>
+                                <!-- dsregcmd セクション -->
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="AzureAD参加:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" FontSize="11">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="NO"/>
+                                                <Setter Property="Foreground" Value="#666666"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedPc.DomainStatus.AzureAdJoined}" Value="True">
+                                                        <Setter Property="Text" Value="YES"/>
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="ドメイン参加:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" FontSize="11">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="NO"/>
+                                                <Setter Property="Foreground" Value="#666666"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedPc.DomainStatus.DomainJoined}" Value="True">
+                                                        <Setter Property="Text" Value="YES"/>
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Setter Property="FontWeight" Value="Bold"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="ドメイン名:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedPc.DomainStatus.DomainName}" FontSize="11"/>
+                                </Grid>
+                                <Grid Margin="0,0,0,2"
+                                      Visibility="{Binding SelectedPc.DomainStatus.AzureAdJoined, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="テナント名:" FontSize="11" Foreground="#666666"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SelectedPc.DomainStatus.TenantName}" FontSize="11"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: ローカルユーザー -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="LOCAL USERS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,16,0,6"
+                                       Visibility="{Binding HasLocalUsers, Converter={StaticResource BoolToVis}}"/>
+                            <DataGrid ItemsSource="{Binding SelectedPc.LocalUsers}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="200"
+                                      Visibility="{Binding HasLocalUsers, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="ユーザー名" Binding="{Binding Name}" Width="120"/>
+                                    <DataGridTextColumn Header="有効" Binding="{Binding Enabled}" Width="50"/>
+                                    <DataGridTextColumn Header="フルネーム" Binding="{Binding FullName}" Width="120"/>
+                                    <DataGridTextColumn Header="説明" Binding="{Binding Description}" Width="*"/>
+                                    <DataGridTextColumn Header="ソース" Binding="{Binding PrincipalSource}" Width="80"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: ローカルグループ -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="LOCAL GROUPS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasLocalGroups, Converter={StaticResource BoolToVis}}"/>
+                            <DataGrid ItemsSource="{Binding SelectedPc.LocalGroups}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="200"
+                                      Visibility="{Binding HasLocalGroups, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="グループ名" Binding="{Binding Name}" Width="180"/>
+                                    <DataGridTextColumn Header="説明" Binding="{Binding Description}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: グループメンバー -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="GROUP MEMBERS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasLocalGroupMembers, Converter={StaticResource BoolToVis}}"/>
+                            <DataGrid ItemsSource="{Binding SelectedPc.LocalGroupMembers}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="200"
+                                      Visibility="{Binding HasLocalGroupMembers, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="グループ名" Binding="{Binding GroupName}" Width="160"/>
+                                    <DataGridTextColumn Header="メンバー名" Binding="{Binding MemberName}" Width="160"/>
+                                    <DataGridTextColumn Header="種別" Binding="{Binding ObjectClass}" Width="80"/>
+                                    <DataGridTextColumn Header="ソース" Binding="{Binding PrincipalSource}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: FWプロファイル -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="FIREWALL PROFILES"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasFirewallProfiles, Converter={StaticResource BoolToVis}}"/>
+                            <DataGrid ItemsSource="{Binding SelectedPc.FirewallProfiles}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      Visibility="{Binding HasFirewallProfiles, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="プロファイル" Binding="{Binding Name}" Width="100"/>
+                                    <DataGridTextColumn Header="有効" Binding="{Binding Enabled}" Width="50"/>
+                                    <DataGridTextColumn Header="受信" Binding="{Binding DefaultInboundAction}" Width="80"/>
+                                    <DataGridTextColumn Header="送信" Binding="{Binding DefaultOutboundAction}" Width="80"/>
+                                    <DataGridTextColumn Header="ログファイル" Binding="{Binding LogFileName}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: FWルール -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasFirewallRules, Converter={StaticResource BoolToVis}}">
+                                <Run Text="FIREWALL RULES"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.FirewallRules.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=" rules)" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding SelectedPc.FirewallRules}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="300"
+                                      EnableRowVirtualization="True"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                      Visibility="{Binding HasFirewallRules, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="ルール名" Binding="{Binding DisplayName}" Width="250"/>
+                                    <DataGridTextColumn Header="有効" Binding="{Binding Enabled}" Width="50"/>
+                                    <DataGridTextColumn Header="方向" Binding="{Binding Direction}" Width="80"/>
+                                    <DataGridTextColumn Header="アクション" Binding="{Binding Action}" Width="70"/>
+                                    <DataGridTextColumn Header="プロファイル" Binding="{Binding Profile}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: オプション機能 -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasOptionalFeatures, Converter={StaticResource BoolToVis}}">
+                                <Run Text="OPTIONAL FEATURES"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.OptionalFeatures.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=" features)" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding SelectedPc.OptionalFeatures}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="250"
+                                      EnableRowVirtualization="True"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      Visibility="{Binding HasOptionalFeatures, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="機能名" Binding="{Binding FeatureName}" Width="300"/>
+                                    <DataGridTextColumn Header="状態" Binding="{Binding State}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
                             <!-- セクション: HOSTLIST 突合結果 -->
                             <!-- ============================================ -->
                             <TextBlock Text="HOSTLIST VERIFICATION"

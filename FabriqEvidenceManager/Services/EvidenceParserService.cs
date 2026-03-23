@@ -74,6 +74,56 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
                     System.Diagnostics.Debug.WriteLine($"[Parse Skip] {macFile}: {ex.Message}");
                 }
             }
+
+            // ローカルユーザー
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileLocalUsers,
+                ParseLocalUsers, pc.LocalUsers);
+
+            // ローカルグループ
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileLocalGroups,
+                ParseLocalGroups, pc.LocalGroups);
+
+            // グループメンバー
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileLocalGroupMembers,
+                ParseLocalGroupMembers, pc.LocalGroupMembers);
+
+            // ドメイン参加状態
+            var domainFile = Path.Combine(pc.PcInformationDirectoryPath, EvidenceConstants.FileDomainStatus);
+            if (File.Exists(domainFile))
+            {
+                try
+                {
+                    var domainStatus = ParseDomainStatus(domainFile);
+
+                    // ドメインユーザー (実ファイル優先、なければ sample にフォールバック)
+                    var domainUsersFile = ResolveFileWithFallback(pc.PcInformationDirectoryPath,
+                        EvidenceConstants.FileDomainUsers, EvidenceConstants.FileDomainUsersSample);
+                    if (domainUsersFile is not null)
+                        domainStatus.DomainUsers.AddRange(ParseNameOnlyCsv(domainUsersFile));
+
+                    // ドメイングループ
+                    var domainGroupsFile = ResolveFileWithFallback(pc.PcInformationDirectoryPath,
+                        EvidenceConstants.FileDomainGroups, EvidenceConstants.FileDomainGroupsSample);
+                    if (domainGroupsFile is not null)
+                        domainStatus.DomainGroups.AddRange(ParseNameOnlyCsv(domainGroupsFile));
+
+                    pc.DomainStatus = domainStatus;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                { System.Diagnostics.Debug.WriteLine($"[Parse Skip] {domainFile}: {ex.Message}"); }
+            }
+
+            // FWプロファイル
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileFirewallProfiles,
+                ParseFirewallProfiles, pc.FirewallProfiles);
+
+            // FWルール
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileFirewallRules,
+                ParseFirewallRules, pc.FirewallRules);
+
+            // オプション機能
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileOptionalFeatures,
+                ParseOptionalFeatures, pc.OptionalFeatures);
         }
 
         // BitLocker 回復キー — 個別ファイルごとにスキップ
@@ -173,51 +223,36 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         var lines = ReadAllLines(filePath);
         var entries = new List<MacAddressEntry>();
 
-        // ブロック単位でパース:
-        //   Connection Name:      {name}
-        //   Adapter:              {adapter}
-        //   Physical Address:     {mac}
-        //   Status:               {status}
-        //   (空行で区切り)
-
-        string? connectionName = null;
-        string? adapter = null;
-        string? physicalAddress = null;
-        string? status = null;
-
-        foreach (var line in lines)
+        // CSV形式: "Name","InterfaceDescription","MacAddress","Status"
+        foreach (var line in lines.Skip(1))
         {
-            var trimmed = line.Trim();
-
-            // ヘッダ行はスキップ
-            if (trimmed.StartsWith("====") || trimmed.Contains("MAC Address List"))
+            if (string.IsNullOrWhiteSpace(line))
                 continue;
 
-            if (TryExtractValue(trimmed, "Connection Name:", out var cn))
-            {
-                // 新しいブロックの開始 → 前のブロックがあればフラッシュ
-                FlushEntry(entries, connectionName, adapter, physicalAddress, status);
-                connectionName = cn;
-                adapter = null;
-                physicalAddress = null;
-                status = null;
-            }
-            else if (TryExtractValue(trimmed, "Adapter:", out var ad))
-            {
-                adapter = ad;
-            }
-            else if (TryExtractValue(trimmed, "Physical Address:", out var pa))
-            {
-                physicalAddress = pa;
-            }
-            else if (TryExtractValue(trimmed, "Status:", out var st))
-            {
-                status = st;
-            }
-        }
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 3)
+                continue;
 
-        // 最後のブロックをフラッシュ
-        FlushEntry(entries, connectionName, adapter, physicalAddress, status);
+            var name = fields[0];
+            var adapter = fields.Count > 1 ? fields[1] : string.Empty;
+            var mac = fields.Count > 2 ? fields[2] : string.Empty;
+            var status = fields.Count > 3 ? fields[3] : string.Empty;
+
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(mac))
+                continue;
+
+            // MACアドレスの妥当性を正規表現で検証
+            if (!MacAddressPattern().IsMatch(mac))
+                continue;
+
+            entries.Add(new MacAddressEntry
+            {
+                ConnectionName = name,
+                AdapterName = adapter,
+                PhysicalAddress = mac,
+                Status = status,
+            });
+        }
 
         return entries;
     }
@@ -231,27 +266,6 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
 
         value = line[key.Length..].Trim();
         return true;
-    }
-
-    /// <summary>ブロックの4フィールドが揃っていればエントリとして追加する。</summary>
-    private static void FlushEntry(
-        List<MacAddressEntry> entries,
-        string? connectionName, string? adapter, string? physicalAddress, string? status)
-    {
-        if (connectionName is null || physicalAddress is null)
-            return;
-
-        // MACアドレスの妥当性を正規表現で検証
-        if (!MacAddressPattern().IsMatch(physicalAddress))
-            return;
-
-        entries.Add(new MacAddressEntry
-        {
-            ConnectionName = connectionName,
-            AdapterName = adapter ?? string.Empty,
-            PhysicalAddress = physicalAddress,
-            Status = status ?? string.Empty,
-        });
     }
 
     // ================================================================
@@ -365,7 +379,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     }
 
     // ================================================================
-    // ネットワーク設定 (03_NetworkConfig.txt)
+    // ネットワーク設定 (06_NetworkConfig.csv)
     // ================================================================
 
     /// <inheritdoc />
@@ -374,71 +388,44 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         var lines = ReadAllLines(filePath);
         var results = new List<NetworkInterfaceInfo>();
 
-        string? currentInterface = null;
-        string ipv4 = "", subnet = "", gateway = "";
-        var dnsList = new List<string>();
-
-        foreach (var line in lines)
+        // CSV形式: "Interface","IPv4Address","SubnetMask","DefaultGateway","DNSServers"
+        foreach (var line in lines.Skip(1))
         {
-            var trimmed = line.Trim();
-
-            // ヘッダ行はスキップ
-            if (trimmed.StartsWith("====") || trimmed.Contains("Network Settings"))
+            if (string.IsNullOrWhiteSpace(line))
                 continue;
 
-            if (trimmed.StartsWith("Interface:", StringComparison.OrdinalIgnoreCase))
-            {
-                // 前のブロックをフラッシュ
-                if (currentInterface is not null)
-                    results.Add(BuildNetworkInfo(currentInterface, ipv4, subnet, gateway, dnsList));
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
 
-                currentInterface = trimmed["Interface:".Length..].Trim();
-                ipv4 = "";
-                subnet = "";
-                gateway = "";
-                dnsList = [];
-            }
-            else if (TryExtractValue(trimmed, "IPv4 Address:", out var ip))
+            var interfaceName = fields[0];
+            var ipv4 = fields.Count > 1 ? fields[1] : string.Empty;
+            var subnet = fields.Count > 2 ? fields[2] : string.Empty;
+            var gateway = fields.Count > 3 ? fields[3] : string.Empty;
+            var dnsRaw = fields.Count > 4 ? fields[4] : string.Empty;
+
+            // DNS: カンマ区切りの値を分割し、IPv6 を除外してソート
+            var dnsList = dnsRaw
+                .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Where(d => !d.Contains(':')) // IPv6 (fec0:...) を除外
+                .Order()
+                .ToList();
+
+            results.Add(new NetworkInterfaceInfo
             {
-                ipv4 = ip;
-            }
-            else if (TryExtractValue(trimmed, "Subnet Mask:", out var sm))
-            {
-                subnet = sm;
-            }
-            else if (TryExtractValue(trimmed, "Default Gateway:", out var gw))
-            {
-                gateway = gw;
-            }
-            else if (TryExtractValue(trimmed, "DNS Servers:", out var dns))
-            {
-                dnsList = dns.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-                    .Where(d => !d.Contains(':')) // IPv6 (fec0:...) を除外
-                    .Order()
-                    .ToList();
-            }
+                InterfaceName = interfaceName,
+                IPv4Address = ipv4,
+                SubnetMask = subnet,
+                DefaultGateway = gateway,
+                DnsServers = dnsList,
+            });
         }
-
-        // 最後のブロック
-        if (currentInterface is not null)
-            results.Add(BuildNetworkInfo(currentInterface, ipv4, subnet, gateway, dnsList));
 
         return results;
     }
 
-    private static NetworkInterfaceInfo BuildNetworkInfo(
-        string interfaceName, string ipv4, string subnet, string gateway, List<string> dnsList) =>
-        new()
-        {
-            InterfaceName = interfaceName,
-            IPv4Address = ipv4,
-            SubnetMask = subnet,
-            DefaultGateway = gateway,
-            DnsServers = dnsList,
-        };
-
     // ================================================================
-    // プリンタ一覧 (04_Printers.txt)
+    // プリンタ一覧 (07_Printers.csv)
     // ================================================================
 
     /// <inheritdoc />
@@ -447,35 +434,22 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         var lines = ReadAllLines(filePath);
         var results = new List<PrinterEntry>();
 
-        foreach (var line in lines)
+        // CSV形式: "Name","DriverName","PortName","Shared","PrinterStatus"
+        foreach (var line in lines.Skip(1))
         {
-            var trimmed = line.Trim();
-
-            // ヘッダ行・空行・区切り行をスキップ
-            if (string.IsNullOrEmpty(trimmed)
-                || trimmed.StartsWith("====")
-                || trimmed.Contains("Printers")
-                || !trimmed.Contains('='))
+            if (string.IsNullOrWhiteSpace(line))
                 continue;
 
-            // Name=xxx|Driver=xxx|Port=xxx 形式をパース
-            var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var segment in trimmed.Split('|'))
-            {
-                var eqIndex = segment.IndexOf('=');
-                if (eqIndex > 0)
-                    fields[segment[..eqIndex].Trim()] = segment[(eqIndex + 1)..].Trim();
-            }
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
 
-            if (fields.TryGetValue("Name", out var name) && !string.IsNullOrWhiteSpace(name))
+            results.Add(new PrinterEntry
             {
-                results.Add(new PrinterEntry
-                {
-                    Name = name,
-                    Driver = fields.GetValueOrDefault("Driver", string.Empty),
-                    Port = fields.GetValueOrDefault("Port", string.Empty),
-                });
-            }
+                Name = fields[0],
+                Driver = fields.Count > 1 ? fields[1] : string.Empty,
+                Port = fields.Count > 2 ? fields[2] : string.Empty,
+            });
         }
 
         return results;
@@ -610,6 +584,319 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         return results;
     }
 
+    // ================================================================
+    // ローカルユーザー (02_LocalUsers.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<LocalUserEntry> ParseLocalUsers(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<LocalUserEntry>();
+
+        // "Name","Enabled","FullName","Description","SID","LastLogon","PasswordLastSet","PasswordRequired","PasswordExpires","AccountExpires","PrincipalSource"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new LocalUserEntry
+            {
+                Name = fields[0],
+                Enabled = fields.Count > 1 && bool.TryParse(fields[1], out var e) && e,
+                FullName = fields.Count > 2 ? fields[2] : string.Empty,
+                Description = fields.Count > 3 ? fields[3] : string.Empty,
+                SID = fields.Count > 4 ? fields[4] : string.Empty,
+                LastLogon = fields.Count > 5 ? fields[5] : string.Empty,
+                PasswordLastSet = fields.Count > 6 ? fields[6] : string.Empty,
+                PasswordRequired = fields.Count > 7 && bool.TryParse(fields[7], out var pr) && pr,
+                PrincipalSource = fields.Count > 10 ? fields[10] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // ローカルグループ (03_LocalGroups.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<LocalGroupEntry> ParseLocalGroups(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<LocalGroupEntry>();
+
+        // "Name","Description","SID"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new LocalGroupEntry
+            {
+                Name = fields[0],
+                Description = fields.Count > 1 ? fields[1] : string.Empty,
+                SID = fields.Count > 2 ? fields[2] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // グループメンバー (04_LocalGroupMembers.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<LocalGroupMemberEntry> ParseLocalGroupMembers(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<LocalGroupMemberEntry>();
+
+        // "GroupName","MemberName","ObjectClass","PrincipalSource"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 2 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new LocalGroupMemberEntry
+            {
+                GroupName = fields[0],
+                MemberName = fields[1],
+                ObjectClass = fields.Count > 2 ? fields[2] : string.Empty,
+                PrincipalSource = fields.Count > 3 ? fields[3] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // ドメイン参加状態 (05_DomainStatus.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public DomainStatusData ParseDomainStatus(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var sections = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        string currentSection = "General";
+        var currentDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        sections[currentSection] = currentDict;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var trimmed = lines[i].Trim();
+
+            // ヘッダー行・区切り行をスキップ
+            if (string.IsNullOrEmpty(trimmed)
+                || trimmed.StartsWith("====")
+                || trimmed.StartsWith("----"))
+                continue;
+
+            // dsregcmd セクション区切り: +------...
+            if (trimmed.StartsWith("+------"))
+            {
+                // 次の行がセクション名 (| Section Name |)
+                if (i + 1 < lines.Length)
+                {
+                    var nextLine = lines[i + 1].Trim();
+                    if (nextLine.StartsWith('|') && nextLine.EndsWith('|'))
+                    {
+                        currentSection = nextLine.Trim('|', ' ');
+                        currentDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        sections[currentSection] = currentDict;
+                        i += 2; // セクション名行とその次の +------ 行をスキップ
+                        continue;
+                    }
+                }
+                continue;
+            }
+
+            // Key : Value 形式 (dsregcmd セクション: "AzureAdJoined : NO")
+            var colonIdx = trimmed.IndexOf(" : ", StringComparison.Ordinal);
+            if (colonIdx > 0)
+            {
+                var key = trimmed[..colonIdx].Trim();
+                var value = trimmed[(colonIdx + 3)..].Trim();
+                currentDict[key] = value;
+                continue;
+            }
+
+            // Key:   Value 形式 (ヘッダーセクション: "PartOfDomain:   False")
+            var simpleColon = trimmed.IndexOf(':');
+            if (simpleColon > 0 && simpleColon + 1 < trimmed.Length
+                && char.IsWhiteSpace(trimmed[simpleColon + 1]))
+            {
+                var key = trimmed[..simpleColon].Trim();
+                var value = trimmed[(simpleColon + 1)..].Trim();
+                currentDict[key] = value;
+            }
+        }
+
+        // 主要フィールドを抽出 — ヘッダーセクション (General)
+        bool partOfDomain = false;
+        string domain = "", domainRole = "", currentUser = "";
+
+        if (sections.TryGetValue("General", out var general))
+        {
+            if (general.TryGetValue("PartOfDomain", out var pod))
+                partOfDomain = pod.Equals("True", StringComparison.OrdinalIgnoreCase);
+            if (general.TryGetValue("Domain", out var d))
+                domain = d;
+            if (general.TryGetValue("DomainRole", out var dr))
+                domainRole = dr;
+            if (general.TryGetValue("Current User", out var cu))
+                currentUser = cu;
+        }
+
+        // 主要フィールドを抽出 — dsregcmd セクション
+        bool azureAdJoined = false, domainJoined = false;
+        string domainName = "", tenantName = "";
+
+        if (sections.TryGetValue("Device State", out var deviceState))
+        {
+            if (deviceState.TryGetValue("AzureAdJoined", out var aaj))
+                azureAdJoined = aaj.Equals("YES", StringComparison.OrdinalIgnoreCase);
+            if (deviceState.TryGetValue("DomainJoined", out var dj))
+                domainJoined = dj.Equals("YES", StringComparison.OrdinalIgnoreCase);
+            if (deviceState.TryGetValue("DomainName", out var dn))
+                domainName = dn;
+        }
+
+        if (sections.TryGetValue("Tenant Details", out var tenantDetails))
+        {
+            if (tenantDetails.TryGetValue("TenantName", out var tn))
+                tenantName = tn;
+        }
+
+        return new DomainStatusData
+        {
+            PartOfDomain = partOfDomain,
+            Domain = domain,
+            DomainRole = domainRole,
+            CurrentUser = currentUser,
+            AzureAdJoined = azureAdJoined,
+            DomainJoined = domainJoined,
+            DomainName = domainName,
+            TenantName = tenantName,
+            Sections = sections,
+        };
+    }
+
+    // ================================================================
+    // FWプロファイル (12_FirewallProfiles.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<FirewallProfileEntry> ParseFirewallProfiles(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<FirewallProfileEntry>();
+
+        // "Name","Enabled","DefaultInboundAction","DefaultOutboundAction","LogFileName"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new FirewallProfileEntry
+            {
+                Name = fields[0],
+                Enabled = fields.Count > 1 && bool.TryParse(fields[1], out var e) && e,
+                DefaultInboundAction = fields.Count > 2 ? fields[2] : string.Empty,
+                DefaultOutboundAction = fields.Count > 3 ? fields[3] : string.Empty,
+                LogFileName = fields.Count > 4 ? fields[4] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // FWルール (12_FirewallRules.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<FirewallRuleEntry> ParseFirewallRules(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<FirewallRuleEntry>();
+
+        // "DisplayName","Enabled","Direction","Action","Profile"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new FirewallRuleEntry
+            {
+                DisplayName = fields[0],
+                Enabled = fields.Count > 1 && bool.TryParse(fields[1], out var e) && e,
+                Direction = fields.Count > 2 ? fields[2] : string.Empty,
+                Action = fields.Count > 3 ? fields[3] : string.Empty,
+                Profile = fields.Count > 4 ? fields[4] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // オプション機能 (13_OptionalFeatures.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<OptionalFeatureEntry> ParseOptionalFeatures(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<OptionalFeatureEntry>();
+
+        // "FeatureName","State"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0]))
+                continue;
+
+            results.Add(new OptionalFeatureEntry
+            {
+                FeatureName = fields[0],
+                State = fields.Count > 1 ? fields[1] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // CSV パーサーヘルパー
+    // ================================================================
+
     /// <summary>
     /// ダブルクォート付きCSV行をフィールドに分割する。
     /// アプリ名にカンマが含まれる場合にも対応。
@@ -675,4 +962,59 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
 
     private static string ReadAllText(string filePath)
         => File.ReadAllText(filePath, Encoding.UTF8);
+
+    /// <summary>
+    /// pc_information 配下のファイルをパースし、結果をコレクションに追加する汎用ヘルパー。
+    /// ファイルが存在しない場合やI/Oエラー時はスキップする。
+    /// </summary>
+    private void TryParseAndPopulate<T>(string pcInfoDir, string fileName,
+        Func<string, IReadOnlyList<T>> parser, List<T> target)
+    {
+        var filePath = Path.Combine(pcInfoDir, fileName);
+        if (!File.Exists(filePath)) return;
+
+        try
+        {
+            foreach (var item in parser(filePath))
+                target.Add(item);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Parse Skip] {filePath}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// primary ファイルを優先し、存在しなければ fallback ファイルを返す。
+    /// どちらも存在しない場合は null。
+    /// </summary>
+    private static string? ResolveFileWithFallback(string dir, string primaryName, string fallbackName)
+    {
+        var primary = Path.Combine(dir, primaryName);
+        if (File.Exists(primary)) return primary;
+        var fallback = Path.Combine(dir, fallbackName);
+        return File.Exists(fallback) ? fallback : null;
+    }
+
+    /// <summary>
+    /// ヘッダーが "Name" のみの単純CSVからName列を抽出する。
+    /// サンプル行やプレースホルダーは除外する。
+    /// </summary>
+    private static List<string> ParseNameOnlyCsv(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var names = new List<string>();
+
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0])) continue;
+            // サンプル行を除外 (括弧で始まるプレースホルダー)
+            if (fields[0].StartsWith('(')) continue;
+            names.Add(fields[0]);
+        }
+
+        return names;
+    }
 }

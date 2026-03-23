@@ -30,6 +30,27 @@ public sealed partial class PcEvidence : ObservableObject
     /// <summary>BitLocker回復キー一覧 (ドライブ別)</summary>
     public List<BitLockerEntry> BitLockerKeys { get; } = [];
 
+    /// <summary>ローカルユーザーアカウント一覧</summary>
+    public List<LocalUserEntry> LocalUsers { get; } = [];
+
+    /// <summary>ローカルグループ一覧</summary>
+    public List<LocalGroupEntry> LocalGroups { get; } = [];
+
+    /// <summary>ローカルグループメンバー一覧</summary>
+    public List<LocalGroupMemberEntry> LocalGroupMembers { get; } = [];
+
+    /// <summary>ドメイン参加状態</summary>
+    public DomainStatusData? DomainStatus { get; set; }
+
+    /// <summary>ファイアウォールプロファイル設定</summary>
+    public List<FirewallProfileEntry> FirewallProfiles { get; } = [];
+
+    /// <summary>ファイアウォールルール一覧</summary>
+    public List<FirewallRuleEntry> FirewallRules { get; } = [];
+
+    /// <summary>Windowsオプション機能一覧</summary>
+    public List<OptionalFeatureEntry> OptionalFeatures { get; } = [];
+
     // ---- evidence ソースパス群 (ファイル収集機能で使用) ----
 
     /// <summary>pc_information ディレクトリの絶対パス</summary>

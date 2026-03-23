@@ -258,6 +258,15 @@ public partial class MainWindowViewModel : ObservableObject
     /// <summary>プレビューパネルの表示フラグ</summary>
     public bool HasPreview => SelectedPc is not null;
 
+    // ---- 新規エビデンスセクション表示フラグ ----
+    public bool HasDomainStatus => SelectedPc?.DomainStatus is not null;
+    public bool HasLocalUsers => SelectedPc?.LocalUsers.Count > 0;
+    public bool HasLocalGroups => SelectedPc?.LocalGroups.Count > 0;
+    public bool HasLocalGroupMembers => SelectedPc?.LocalGroupMembers.Count > 0;
+    public bool HasFirewallProfiles => SelectedPc?.FirewallProfiles.Count > 0;
+    public bool HasFirewallRules => SelectedPc?.FirewallRules.Count > 0;
+    public bool HasOptionalFeatures => SelectedPc?.OptionalFeatures.Count > 0;
+
     /// <summary>処理中フラグ (プログレスバー表示、ボタン無効化に使用)</summary>
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(LoadEvidenceCommand))]
@@ -613,6 +622,13 @@ public partial class MainWindowViewModel : ObservableObject
     private void UpdatePreviewInfo(PcEvidence? pc)
     {
         OnPropertyChanged(nameof(HasPreview));
+        OnPropertyChanged(nameof(HasDomainStatus));
+        OnPropertyChanged(nameof(HasLocalUsers));
+        OnPropertyChanged(nameof(HasLocalGroups));
+        OnPropertyChanged(nameof(HasLocalGroupMembers));
+        OnPropertyChanged(nameof(HasFirewallProfiles));
+        OnPropertyChanged(nameof(HasFirewallRules));
+        OnPropertyChanged(nameof(HasOptionalFeatures));
 
         PreviewImagePaths.Clear();
         CurrentPreviewIndex = 0;

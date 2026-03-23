@@ -5,7 +5,11 @@
       "Read(//e/test/fabriq_evidence/**)",
       "Bash(xargs -I {} basename {})",
       "Bash(xargs grep -l \"class VerificationItem\\\\|enum VerificationStatus\")",
-      "Bash(xargs grep -l \"app\\\\|App\\\\|LIST\\\\|List\")"
+      "Bash(xargs grep -l \"app\\\\|App\\\\|LIST\\\\|List\")",
+      "Read(//tmp/**)",
+      "Bash(grep -E \"\\\\.cs$\")",
+      "Bash(.csv \")",
+      "Bash(dotnet clean)"
     ]
   }
 }

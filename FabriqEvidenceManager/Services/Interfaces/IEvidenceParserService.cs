@@ -90,4 +90,29 @@ public interface IEvidenceParserService
     /// 08_StoreApps.csv からストアアプリ一覧を抽出する。
     /// </summary>
     IReadOnlyList<InstalledAppEntry> ParseStoreApps(string filePath);
+
+    // ================================================================
+    // 新規エビデンスファイルパーサー
+    // ================================================================
+
+    /// <summary>02_LocalUsers.csv からローカルユーザー一覧を抽出する。</summary>
+    IReadOnlyList<LocalUserEntry> ParseLocalUsers(string filePath);
+
+    /// <summary>03_LocalGroups.csv からローカルグループ一覧を抽出する。</summary>
+    IReadOnlyList<LocalGroupEntry> ParseLocalGroups(string filePath);
+
+    /// <summary>04_LocalGroupMembers.csv からグループメンバー一覧を抽出する。</summary>
+    IReadOnlyList<LocalGroupMemberEntry> ParseLocalGroupMembers(string filePath);
+
+    /// <summary>05_DomainStatus.txt からドメイン参加状態を抽出する。</summary>
+    DomainStatusData ParseDomainStatus(string filePath);
+
+    /// <summary>12_FirewallProfiles.csv からFWプロファイル設定を抽出する。</summary>
+    IReadOnlyList<FirewallProfileEntry> ParseFirewallProfiles(string filePath);
+
+    /// <summary>12_FirewallRules.csv からFWルール一覧を抽出する。</summary>
+    IReadOnlyList<FirewallRuleEntry> ParseFirewallRules(string filePath);
+
+    /// <summary>13_OptionalFeatures.csv からオプション機能一覧を抽出する。</summary>
+    IReadOnlyList<OptionalFeatureEntry> ParseOptionalFeatures(string filePath);
 }
