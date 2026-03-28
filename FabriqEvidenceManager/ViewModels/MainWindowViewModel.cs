@@ -26,7 +26,6 @@ namespace FabriqEvidenceManager.ViewModels;
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
-    private readonly EvidenceDiscoveryService _flatDiscovery;
     private readonly NestedEvidenceDiscoveryService _nestedDiscovery;
     private readonly IEvidenceParserService _parserService;
     private readonly IEvidenceCollectorService _collectorService;
@@ -42,7 +41,6 @@ public partial class MainWindowViewModel : ObservableObject
     private const int AutoReloadIntervalSeconds = 30;
 
     public MainWindowViewModel(
-        EvidenceDiscoveryService flatDiscovery,
         NestedEvidenceDiscoveryService nestedDiscovery,
         IEvidenceParserService parserService,
         IEvidenceCollectorService collectorService,
@@ -52,7 +50,6 @@ public partial class MainWindowViewModel : ObservableObject
         IChecklistParserService checklistParserService,
         IBaselineService baselineService)
     {
-        _flatDiscovery = flatDiscovery;
         _nestedDiscovery = nestedDiscovery;
         _parserService = parserService;
         _collectorService = collectorService;
@@ -156,13 +153,6 @@ public partial class MainWindowViewModel : ObservableObject
     // ================================================================
     // Observable Properties
     // ================================================================
-
-    /// <summary>evidence フォルダの構造モード</summary>
-    [ObservableProperty]
-    private EvidenceMode _selectedMode = EvidenceMode.Flat;
-
-    /// <summary>モード選択用の選択肢リスト</summary>
-    public EvidenceMode[] AvailableModes { get; } = [EvidenceMode.Flat, EvidenceMode.Nested];
 
     /// <summary>自動リロードの ON/OFF</summary>
     [ObservableProperty]
@@ -456,11 +446,8 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            // 1. Discovery: PC一覧を構築 (モードに応じたサービスを使用)
-            IEvidenceDiscoveryService discovery = SelectedMode == EvidenceMode.Flat
-                ? _flatDiscovery
-                : _nestedDiscovery;
-            var pcList = await discovery.DiscoverAsync(EvidenceRootPath, cancellationToken);
+            // 1. Discovery: PC一覧を構築
+            var pcList = await _nestedDiscovery.DiscoverAsync(EvidenceRootPath, cancellationToken);
 
             // 2. Parse: 各PCのログファイルからデータを抽出 + CheckOptions 適用
             foreach (var pc in pcList)
@@ -763,13 +750,9 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             // 1. バックグラウンドで Discovery + Parse
-            IEvidenceDiscoveryService discovery = SelectedMode == EvidenceMode.Flat
-                ? _flatDiscovery
-                : _nestedDiscovery;
-
             var newPcList = await Task.Run(() =>
             {
-                var list = discovery.DiscoverAsync(EvidenceRootPath).Result;
+                var list = _nestedDiscovery.DiscoverAsync(EvidenceRootPath).Result;
                 foreach (var pc in list)
                 {
                     _parserService.PopulateDetails(pc);

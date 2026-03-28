@@ -11,25 +11,15 @@ using FabriqEvidenceManager.Services.Interfaces;
 namespace FabriqEvidenceManager.Services;
 
 /// <summary>
-/// log_uploader が作成するネスト構造のエビデンスフォルダを走査する。
+/// log_uploader が作成するエビデンスフォルダを走査する。
 ///
-/// 旧形式: {timestamp}_{COMPUTERNAME}_{mediaSerial}/evidence/{category}/{date_sn_pc}/...
-///   → カテゴリ内にサブフォルダが存在し、既存の <see cref="EvidenceDiscoveryService"/> に委譲。
-///
-/// 新形式: {timestamp}_{PCName}_{SerialNumber}_evidence/evidence/{category}/ファイル直接配置
+/// 形式: {timestamp}_{PCName}_{SerialNumber}_evidence/evidence/{category}/ファイル直接配置
 ///   → 親フォルダ名から PC 情報を取得し、カテゴリフォルダのパスを直接割り当て。
 ///
-/// <c>_evidence</c> サフィックスの有無で新旧を自動判別し、両方を同一リストにマージして返す。
+/// <c>_evidence</c> サフィックスを持つフォルダのみを対象とする。
 /// </summary>
 public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
 {
-    private readonly EvidenceDiscoveryService _innerDiscovery;
-
-    public NestedEvidenceDiscoveryService(EvidenceDiscoveryService innerDiscovery)
-    {
-        _innerDiscovery = innerDiscovery;
-    }
-
     public Task<IReadOnlyList<PcEvidence>> DiscoverAsync(
         string evidenceRootPath,
         CancellationToken cancellationToken = default)
@@ -48,22 +38,17 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            var folderName = Path.GetFileName(pcFolder);
+
+            // _evidence サフィックスを持つフォルダのみ対象
+            if (!EvidencePathParser.IsNewFormatFolder(folderName))
+                continue;
+
             var evidencePath = Path.Combine(pcFolder, "evidence");
             if (!Directory.Exists(evidencePath))
                 continue;
 
-            var folderName = Path.GetFileName(pcFolder);
-
-            if (EvidencePathParser.IsNewFormatFolder(folderName))
-            {
-                // ====== 新形式: 親フォルダ名から PC 情報を取得 ======
-                ProcessNewFormat(folderName, evidencePath, mergedMap);
-            }
-            else
-            {
-                // ====== 旧形式: フラット Discovery に委譲 ======
-                ProcessLegacyFormat(evidencePath, mergedMap, cancellationToken);
-            }
+            ProcessFolder(folderName, evidencePath, mergedMap);
         }
 
         IReadOnlyList<PcEvidence> result = mergedMap.Values
@@ -74,11 +59,11 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
     }
 
     /// <summary>
-    /// 新形式フォルダを処理する。
+    /// フォルダを処理する。
     /// 親フォルダ名から PC名・SN・日付をパースし、evidence/ 内のカテゴリフォルダを
     /// サブディレクトリ走査なしで直接割り当てる。
     /// </summary>
-    private static void ProcessNewFormat(
+    private static void ProcessFolder(
         string folderName,
         string evidencePath,
         Dictionary<string, PcEvidence> mergedMap)
@@ -98,14 +83,6 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
         var autoCapturePath = Path.Combine(evidencePath, EvidenceConstants.DirAutoCapture);
         if (Directory.Exists(autoCapturePath))
             pc.AutoCaptureDirectoryPath = autoCapturePath;
-
-        // ----- gyotaku → AutoCaptureDirectoryPath フォールバック -----
-        if (pc.AutoCaptureDirectoryPath is null)
-        {
-            var gyotakuPath = Path.Combine(evidencePath, EvidenceConstants.DirGyotaku);
-            if (Directory.Exists(gyotakuPath))
-                pc.AutoCaptureDirectoryPath = gyotakuPath;
-        }
 
         // ----- bitlocker (フラット: ファイル直接配置) -----
         var bitlockerPath = Path.Combine(evidencePath, EvidenceConstants.DirBitLocker);
@@ -134,47 +111,6 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
                 .LastOrDefault(); // 名前順で最新を採用
             if (historyFile is not null)
                 pc.ExportHistoryFilePath = historyFile;
-        }
-    }
-
-    /// <summary>
-    /// 旧形式フォルダを処理する。
-    /// 既存のフラット Discovery に委譲し、結果を mergedMap にマージする。
-    /// </summary>
-    private void ProcessLegacyFormat(
-        string evidencePath,
-        Dictionary<string, PcEvidence> mergedMap,
-        CancellationToken cancellationToken)
-    {
-        var pcsInFolder = _innerDiscovery.DiscoverAsync(evidencePath, cancellationToken).Result;
-
-        foreach (var pc in pcsInFolder)
-        {
-            // 親フォルダが異なれば別エントリとして扱う
-            var key = $"{pc.PcName}\t{pc.SerialNumber}\t{pc.CollectionDate}\t{evidencePath}";
-
-            if (mergedMap.TryGetValue(key, out var existing))
-            {
-                // 同一PC・同一日が複数フォルダに存在する場合、上書き（同日再キッティング対応）
-                existing.PcInformationDirectoryPath = pc.PcInformationDirectoryPath ?? existing.PcInformationDirectoryPath;
-                existing.AutoCaptureDirectoryPath = pc.AutoCaptureDirectoryPath ?? existing.AutoCaptureDirectoryPath;
-                existing.BitLockerDirectoryPath = pc.BitLockerDirectoryPath ?? existing.BitLockerDirectoryPath;
-                existing.ChecklistFilePath = pc.ChecklistFilePath ?? existing.ChecklistFilePath;
-                existing.ExportHistoryFilePath = pc.ExportHistoryFilePath ?? existing.ExportHistoryFilePath;
-            }
-            else
-            {
-                mergedMap[key] = pc;
-            }
-
-            // gyotaku/ → AutoCaptureDirectoryPath へのフォールバック
-            var target = mergedMap[key];
-            if (target.AutoCaptureDirectoryPath is null)
-            {
-                var gyotakuPath = Path.Combine(evidencePath, EvidenceConstants.DirGyotaku);
-                if (Directory.Exists(gyotakuPath))
-                    target.AutoCaptureDirectoryPath = gyotakuPath;
-            }
         }
     }
 

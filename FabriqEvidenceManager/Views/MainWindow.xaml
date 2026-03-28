@@ -200,40 +200,30 @@
             <StackPanel>
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- モード切替 -->
-                    <ComboBox Grid.Column="0"
-                              ItemsSource="{Binding AvailableModes}"
-                              SelectedItem="{Binding SelectedMode}"
-                              VerticalContentAlignment="Center"
-                              Margin="0,0,6,0"
-                              MinWidth="90"
-                              FontSize="12"/>
-
-                    <TextBox Grid.Column="1"
+                    <TextBox Grid.Column="0"
                              Text="{Binding EvidenceRootPath, UpdateSourceTrigger=PropertyChanged}"
                              VerticalContentAlignment="Center"
                              IsReadOnly="True"/>
 
-                    <Button Grid.Column="2"
+                    <Button Grid.Column="1"
                             Content="参照..."
                             Command="{Binding SelectEvidenceFolderCommand}"
                             Margin="6,0,0,0"/>
 
-                    <Button Grid.Column="3"
+                    <Button Grid.Column="2"
                             Content="読み込み"
                             Command="{Binding LoadEvidenceCommand}"
                             Margin="6,0,0,0"
                             FontWeight="SemiBold"/>
 
                     <!-- 自動更新トグル -->
-                    <CheckBox Grid.Column="4"
+                    <CheckBox Grid.Column="3"
                               Content="自動更新 (30秒)"
                               IsChecked="{Binding IsAutoReloadEnabled}"
                               VerticalAlignment="Center"
