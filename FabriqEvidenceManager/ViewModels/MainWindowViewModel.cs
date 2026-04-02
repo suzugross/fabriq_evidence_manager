@@ -256,6 +256,14 @@ public partial class MainWindowViewModel : ObservableObject
     public bool HasFirewallProfiles => SelectedPc?.FirewallProfiles.Count > 0;
     public bool HasFirewallRules => SelectedPc?.FirewallRules.Count > 0;
     public bool HasOptionalFeatures => SelectedPc?.OptionalFeatures.Count > 0;
+    public bool HasUserProfiles => SelectedPc?.UserProfiles.Count > 0;
+    public bool HasDisks => SelectedPc?.Disks.Count > 0;
+    public bool HasPartitions => SelectedPc?.Partitions.Count > 0;
+    public bool HasPowerSettings => SelectedPc?.PowerSettings is not null;
+    public bool HasWiFiProfiles => SelectedPc?.WiFiProfiles.Count > 0;
+    public bool HasRestorePoints => SelectedPc?.RestorePoints.Count > 0;
+    public bool HasDefenderStatus => SelectedPc?.DefenderStatus is not null;
+    public bool HasWindowsUpdates => SelectedPc?.WindowsUpdates.Count > 0;
 
     /// <summary>処理中フラグ (プログレスバー表示、ボタン無効化に使用)</summary>
     [ObservableProperty]
@@ -616,6 +624,14 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(HasFirewallProfiles));
         OnPropertyChanged(nameof(HasFirewallRules));
         OnPropertyChanged(nameof(HasOptionalFeatures));
+        OnPropertyChanged(nameof(HasUserProfiles));
+        OnPropertyChanged(nameof(HasDisks));
+        OnPropertyChanged(nameof(HasPartitions));
+        OnPropertyChanged(nameof(HasPowerSettings));
+        OnPropertyChanged(nameof(HasWiFiProfiles));
+        OnPropertyChanged(nameof(HasRestorePoints));
+        OnPropertyChanged(nameof(HasDefenderStatus));
+        OnPropertyChanged(nameof(HasWindowsUpdates));
 
         PreviewImagePaths.Clear();
         CurrentPreviewIndex = 0;

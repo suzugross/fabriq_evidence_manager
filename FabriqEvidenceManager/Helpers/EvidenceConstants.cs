@@ -76,18 +76,6 @@ public static class EvidenceConstants
     /// <summary>ドメイン参加状態ログ</summary>
     public const string FileDomainStatus = "05_DomainStatus.txt";
 
-    /// <summary>ドメインユーザーCSV (ドメイン参加時)</summary>
-    public const string FileDomainUsers = "05_DomainUsers.csv";
-
-    /// <summary>ドメインユーザーCSV (非ドメイン参加時のサンプル)</summary>
-    public const string FileDomainUsersSample = "05_DomainUsers_sample.csv";
-
-    /// <summary>ドメイングループCSV (ドメイン参加時)</summary>
-    public const string FileDomainGroups = "05_DomainGroups.csv";
-
-    /// <summary>ドメイングループCSV (非ドメイン参加時のサンプル)</summary>
-    public const string FileDomainGroupsSample = "05_DomainGroups_sample.csv";
-
     /// <summary>ファイアウォールプロファイルCSV</summary>
     public const string FileFirewallProfiles = "12_FirewallProfiles.csv";
 
@@ -96,6 +84,30 @@ public static class EvidenceConstants
 
     /// <summary>Windowsオプション機能CSV</summary>
     public const string FileOptionalFeatures = "13_OptionalFeatures.csv";
+
+    /// <summary>ユーザープロファイルCSV</summary>
+    public const string FileUserProfiles = "05_UserProfiles.csv";
+
+    /// <summary>物理ディスク情報CSV</summary>
+    public const string FileDisks = "08b_Disks.csv";
+
+    /// <summary>パーティション情報CSV</summary>
+    public const string FilePartitions = "08b_Partitions.csv";
+
+    /// <summary>電源設定ログ</summary>
+    public const string FilePowerSettings = "15_PowerSettings.txt";
+
+    /// <summary>WiFiプロファイルログ</summary>
+    public const string FileWiFiProfiles = "16_WiFiProfiles.txt";
+
+    /// <summary>復元ポイントCSV</summary>
+    public const string FileRestorePoints = "17_RestorePoints.csv";
+
+    /// <summary>Windows Defenderステータスログ</summary>
+    public const string FileDefenderStatus = "18_DefenderStatus.txt";
+
+    /// <summary>Windows Update一覧CSV</summary>
+    public const string FileWindowsUpdates = "19_WindowsUpdates.csv";
 
     // ================================================================
     // 出力ファイル / ディレクトリ命名

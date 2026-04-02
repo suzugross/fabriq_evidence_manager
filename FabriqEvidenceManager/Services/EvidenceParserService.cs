@@ -93,21 +93,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             {
                 try
                 {
-                    var domainStatus = ParseDomainStatus(domainFile);
-
-                    // ドメインユーザー (実ファイル優先、なければ sample にフォールバック)
-                    var domainUsersFile = ResolveFileWithFallback(pc.PcInformationDirectoryPath,
-                        EvidenceConstants.FileDomainUsers, EvidenceConstants.FileDomainUsersSample);
-                    if (domainUsersFile is not null)
-                        domainStatus.DomainUsers.AddRange(ParseNameOnlyCsv(domainUsersFile));
-
-                    // ドメイングループ
-                    var domainGroupsFile = ResolveFileWithFallback(pc.PcInformationDirectoryPath,
-                        EvidenceConstants.FileDomainGroups, EvidenceConstants.FileDomainGroupsSample);
-                    if (domainGroupsFile is not null)
-                        domainStatus.DomainGroups.AddRange(ParseNameOnlyCsv(domainGroupsFile));
-
-                    pc.DomainStatus = domainStatus;
+                    pc.DomainStatus = ParseDomainStatus(domainFile);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 { System.Diagnostics.Debug.WriteLine($"[Parse Skip] {domainFile}: {ex.Message}"); }
@@ -124,6 +110,38 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             // オプション機能
             TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileOptionalFeatures,
                 ParseOptionalFeatures, pc.OptionalFeatures);
+
+            // ユーザープロファイル
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileUserProfiles,
+                ParseUserProfiles, pc.UserProfiles);
+
+            // ディスク
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileDisks,
+                ParseDisks, pc.Disks);
+
+            // パーティション
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FilePartitions,
+                ParsePartitions, pc.Partitions);
+
+            // 電源設定
+            TryParseNullable(pc.PcInformationDirectoryPath, EvidenceConstants.FilePowerSettings,
+                ParsePowerSettings, v => pc.PowerSettings = v);
+
+            // WiFiプロファイル
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileWiFiProfiles,
+                ParseWiFiProfiles, pc.WiFiProfiles);
+
+            // 復元ポイント
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileRestorePoints,
+                ParseRestorePoints, pc.RestorePoints);
+
+            // Defender状態
+            TryParseNullable(pc.PcInformationDirectoryPath, EvidenceConstants.FileDefenderStatus,
+                ParseDefenderStatus, v => pc.DefenderStatus = v);
+
+            // Windows Update
+            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileWindowsUpdates,
+                ParseWindowsUpdates, pc.WindowsUpdates);
         }
 
         // BitLocker 回復キー — 個別ファイルごとにスキップ
@@ -985,36 +1003,282 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     }
 
     /// <summary>
-    /// primary ファイルを優先し、存在しなければ fallback ファイルを返す。
-    /// どちらも存在しない場合は null。
+    /// pc_information 配下のファイルをパースし、nullable プロパティにセットする汎用ヘルパー。
     /// </summary>
-    private static string? ResolveFileWithFallback(string dir, string primaryName, string fallbackName)
+    private static void TryParseNullable<T>(string pcInfoDir, string fileName,
+        Func<string, T> parser, Action<T> setter) where T : class
     {
-        var primary = Path.Combine(dir, primaryName);
-        if (File.Exists(primary)) return primary;
-        var fallback = Path.Combine(dir, fallbackName);
-        return File.Exists(fallback) ? fallback : null;
+        var filePath = Path.Combine(pcInfoDir, fileName);
+        if (!File.Exists(filePath)) return;
+
+        try
+        {
+            setter(parser(filePath));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Parse Skip] {filePath}: {ex.Message}");
+        }
     }
 
-    /// <summary>
-    /// ヘッダーが "Name" のみの単純CSVからName列を抽出する。
-    /// サンプル行やプレースホルダーは除外する。
-    /// </summary>
-    private static List<string> ParseNameOnlyCsv(string filePath)
+    // ================================================================
+    // ユーザープロファイル (05_UserProfiles.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<UserProfileEntry> ParseUserProfiles(string filePath)
     {
         var lines = ReadAllLines(filePath);
-        var names = new List<string>();
+        var results = new List<UserProfileEntry>();
 
+        // "LocalPath","SID","LastUseTime","Loaded"
         foreach (var line in lines.Skip(1))
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
             var fields = ParseCsvLine(line);
             if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0])) continue;
-            // サンプル行を除外 (括弧で始まるプレースホルダー)
-            if (fields[0].StartsWith('(')) continue;
-            names.Add(fields[0]);
+
+            results.Add(new UserProfileEntry
+            {
+                LocalPath = fields[0],
+                SID = fields.Count > 1 ? fields[1] : string.Empty,
+                LastUseTime = fields.Count > 2 ? fields[2] : string.Empty,
+                Loaded = fields.Count > 3 && bool.TryParse(fields[3], out var l) && l,
+            });
         }
 
-        return names;
+        return results;
     }
+
+    // ================================================================
+    // 物理ディスク (08b_Disks.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<DiskEntry> ParseDisks(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<DiskEntry>();
+
+        // "Number","FriendlyName","SerialNumber","SizeGB","PartitionStyle","HealthStatus","OperationalStatus"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 2) continue;
+
+            results.Add(new DiskEntry
+            {
+                Number = int.TryParse(fields[0], out var n) ? n : 0,
+                FriendlyName = fields[1],
+                SerialNumber = fields.Count > 2 ? fields[2] : string.Empty,
+                SizeGB = fields.Count > 3 ? fields[3] : string.Empty,
+                PartitionStyle = fields.Count > 4 ? fields[4] : string.Empty,
+                HealthStatus = fields.Count > 5 ? fields[5] : string.Empty,
+                OperationalStatus = fields.Count > 6 ? fields[6] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // パーティション (08b_Partitions.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<PartitionEntry> ParsePartitions(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<PartitionEntry>();
+
+        // "DiskNumber","PartitionNumber","DriveLetter","SizeGB","Type","IsSystem","IsBoot","IsActive"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 5) continue;
+
+            results.Add(new PartitionEntry
+            {
+                DiskNumber = int.TryParse(fields[0], out var dn) ? dn : 0,
+                PartitionNumber = int.TryParse(fields[1], out var pn) ? pn : 0,
+                DriveLetter = fields[2].Trim(),
+                SizeGB = fields[3],
+                Type = fields[4],
+                IsSystem = fields.Count > 5 && bool.TryParse(fields[5], out var s) && s,
+                IsBoot = fields.Count > 6 && bool.TryParse(fields[6], out var b) && b,
+                IsActive = fields.Count > 7 && bool.TryParse(fields[7], out var a) && a,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // 電源設定 (15_PowerSettings.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public PowerSettingsData ParsePowerSettings(string filePath)
+    {
+        var text = ReadAllText(filePath);
+        var activePlan = string.Empty;
+
+        // "---- Power Plans ----" セクションから "[ACTIVE]" のプラン名を抽出
+        foreach (var line in text.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Contains("[ACTIVE]", StringComparison.OrdinalIgnoreCase))
+            {
+                // "  バランス [ACTIVE]" → "バランス"
+                var idx = trimmed.IndexOf("[ACTIVE]", StringComparison.OrdinalIgnoreCase);
+                activePlan = trimmed[..idx].Trim();
+                break;
+            }
+        }
+
+        return new PowerSettingsData
+        {
+            ActivePlanName = activePlan,
+            RawText = text,
+        };
+    }
+
+    // ================================================================
+    // WiFiプロファイル (16_WiFiProfiles.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> ParseWiFiProfiles(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var profiles = new List<string>();
+
+        // "すべてのユーザー プロファイル     : SSID名" パターンを抽出
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            // 日本語環境: "すべてのユーザー プロファイル     : ssid"
+            // 英語環境: "All User Profile     : ssid"
+            var colonIdx = trimmed.IndexOf(':');
+            if (colonIdx <= 0 || colonIdx >= trimmed.Length - 1) continue;
+
+            var key = trimmed[..colonIdx].Trim();
+            if (key.Contains("プロファイル", StringComparison.OrdinalIgnoreCase)
+                || key.Contains("Profile", StringComparison.OrdinalIgnoreCase))
+            {
+                var value = trimmed[(colonIdx + 1)..].Trim();
+                if (!string.IsNullOrEmpty(value) && !value.StartsWith('<'))
+                    profiles.Add(value);
+            }
+        }
+
+        return profiles;
+    }
+
+    // ================================================================
+    // 復元ポイント (17_RestorePoints.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<RestorePointEntry> ParseRestorePoints(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<RestorePointEntry>();
+
+        // "SequenceNumber","Description","RestorePointType","CreationTime"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 2) continue;
+
+            results.Add(new RestorePointEntry
+            {
+                SequenceNumber = int.TryParse(fields[0], out var sn) ? sn : 0,
+                Description = fields[1],
+                RestorePointType = fields.Count > 2 ? fields[2] : string.Empty,
+                CreationTime = fields.Count > 3 ? fields[3] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
+    // ================================================================
+    // Windows Defender 状態 (18_DefenderStatus.txt)
+    // ================================================================
+
+    /// <inheritdoc />
+    public DefenderStatusData ParseDefenderStatus(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var kv = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("====")) continue;
+
+            var colonIdx = trimmed.IndexOf(':');
+            if (colonIdx <= 0 || colonIdx >= trimmed.Length - 1) continue;
+
+            var key = trimmed[..colonIdx].Trim();
+            var value = trimmed[(colonIdx + 1)..].Trim();
+            kv[key] = value;
+        }
+
+        return new DefenderStatusData
+        {
+            AMServiceEnabled = B("AMServiceEnabled"),
+            AntispywareEnabled = B("AntispywareEnabled"),
+            AntivirusEnabled = B("AntivirusEnabled"),
+            RealTimeProtectionEnabled = B("RealTimeProtectionEnabled"),
+            BehaviorMonitorEnabled = B("BehaviorMonitorEnabled"),
+            IoavProtectionEnabled = B("IoavProtectionEnabled"),
+            NISEnabled = B("NISEnabled"),
+            OnAccessProtectionEnabled = B("OnAccessProtectionEnabled"),
+            AMEngineVersion = S("AMEngineVersion"),
+            AMProductVersion = S("AMProductVersion"),
+            AntivirusSignatureVersion = S("AntivirusSignatureVersion"),
+            AntivirusSignatureLastUpdated = S("AntivirusSignatureLastUpdated"),
+            QuickScanEndTime = S("QuickScanEndTime"),
+            FullScanEndTime = S("FullScanEndTime"),
+        };
+
+        bool B(string key) => kv.TryGetValue(key, out var v) && bool.TryParse(v, out var b) && b;
+        string S(string key) => kv.TryGetValue(key, out var v) ? v : string.Empty;
+    }
+
+    // ================================================================
+    // Windows Update (19_WindowsUpdates.csv)
+    // ================================================================
+
+    /// <inheritdoc />
+    public IReadOnlyList<WindowsUpdateEntry> ParseWindowsUpdates(string filePath)
+    {
+        var lines = ReadAllLines(filePath);
+        var results = new List<WindowsUpdateEntry>();
+
+        // "HotFixID","Description","InstalledBy","InstalledOn"
+        foreach (var line in lines.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            var fields = ParseCsvLine(line);
+            if (fields.Count < 1 || string.IsNullOrWhiteSpace(fields[0])) continue;
+
+            results.Add(new WindowsUpdateEntry
+            {
+                HotFixID = fields[0],
+                Description = fields.Count > 1 ? fields[1] : string.Empty,
+                InstalledBy = fields.Count > 2 ? fields[2] : string.Empty,
+                InstalledOn = fields.Count > 3 ? fields[3] : string.Empty,
+            });
+        }
+
+        return results;
+    }
+
 }

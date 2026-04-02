@@ -928,6 +928,227 @@
                             </DataGrid>
 
                             <!-- ============================================ -->
+                            <!-- セクション: ユーザープロファイル -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasUserProfiles, Converter={StaticResource BoolToVis}}">
+                                <Run Text="USER PROFILES"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.UserProfiles.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding SelectedPc.UserProfiles}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="180"
+                                      Visibility="{Binding HasUserProfiles, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="パス" Binding="{Binding LocalPath}" Width="280"/>
+                                    <DataGridTextColumn Header="SID" Binding="{Binding SID}" Width="220"/>
+                                    <DataGridTextColumn Header="最終使用" Binding="{Binding LastUseTime}" Width="140"/>
+                                    <DataGridCheckBoxColumn Header="読込済" Binding="{Binding Loaded}" Width="60"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: ディスク -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasDisks, Converter={StaticResource BoolToVis}}">
+                                <Run Text="DISKS"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.Disks.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding SelectedPc.Disks}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="150"
+                                      Visibility="{Binding HasDisks, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding Number}" Width="30"/>
+                                    <DataGridTextColumn Header="名前" Binding="{Binding FriendlyName}" Width="200"/>
+                                    <DataGridTextColumn Header="SN" Binding="{Binding SerialNumber}" Width="200"/>
+                                    <DataGridTextColumn Header="容量(GB)" Binding="{Binding SizeGB}" Width="70"/>
+                                    <DataGridTextColumn Header="形式" Binding="{Binding PartitionStyle}" Width="50"/>
+                                    <DataGridTextColumn Header="状態" Binding="{Binding HealthStatus}" Width="70"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: パーティション -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasPartitions, Converter={StaticResource BoolToVis}}">
+                                <Run Text="PARTITIONS"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.Partitions.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding SelectedPc.Partitions}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="200"
+                                      Visibility="{Binding HasPartitions, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Disk#" Binding="{Binding DiskNumber}" Width="50"/>
+                                    <DataGridTextColumn Header="Part#" Binding="{Binding PartitionNumber}" Width="50"/>
+                                    <DataGridTextColumn Header="ドライブ" Binding="{Binding DriveLetter}" Width="60"/>
+                                    <DataGridTextColumn Header="容量(GB)" Binding="{Binding SizeGB}" Width="70"/>
+                                    <DataGridTextColumn Header="種別" Binding="{Binding Type}" Width="80"/>
+                                    <DataGridCheckBoxColumn Header="System" Binding="{Binding IsSystem}" Width="55"/>
+                                    <DataGridCheckBoxColumn Header="Boot" Binding="{Binding IsBoot}" Width="50"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: 電源設定 -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasPowerSettings, Converter={StaticResource BoolToVis}}">
+                                <Run Text="POWER SETTINGS"/>
+                                <Run Text="  アクティブプラン: " Foreground="#999999"/><Run Text="{Binding SelectedPc.PowerSettings.ActivePlanName, Mode=OneWay}" Foreground="#4CAF50"/>
+                            </TextBlock>
+                            <TextBox Text="{Binding SelectedPc.PowerSettings.RawText, Mode=OneWay}"
+                                     IsReadOnly="True" TextWrapping="NoWrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     FontFamily="Consolas" FontSize="10"
+                                     MaxHeight="200" Background="#FAFAFA"
+                                     BorderThickness="1" BorderBrush="#E0E0E0"
+                                     Visibility="{Binding HasPowerSettings, Converter={StaticResource BoolToVis}}"
+                                     Margin="0,0,0,4"/>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: WiFiプロファイル -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasWiFiProfiles, Converter={StaticResource BoolToVis}}">
+                                <Run Text="WIFI PROFILES"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.WiFiProfiles.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <ItemsControl ItemsSource="{Binding SelectedPc.WiFiProfiles}"
+                                          Visibility="{Binding HasWiFiProfiles, Converter={StaticResource BoolToVis}}"
+                                          Margin="0,0,0,4">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" FontSize="11" Margin="8,1,0,1"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: 復元ポイント -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasRestorePoints, Converter={StaticResource BoolToVis}}">
+                                <Run Text="RESTORE POINTS"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.RestorePoints.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding SelectedPc.RestorePoints}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="180"
+                                      Visibility="{Binding HasRestorePoints, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#" Binding="{Binding SequenceNumber}" Width="40"/>
+                                    <DataGridTextColumn Header="説明" Binding="{Binding Description}" Width="200"/>
+                                    <DataGridTextColumn Header="種別" Binding="{Binding RestorePointType}" Width="60"/>
+                                    <DataGridTextColumn Header="作成日時" Binding="{Binding CreationTime}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: Windows Defender -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="WINDOWS DEFENDER"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasDefenderStatus, Converter={StaticResource BoolToVis}}"/>
+                            <Grid Visibility="{Binding HasDefenderStatus, Converter={StaticResource BoolToVis}}"
+                                  Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="4"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Antivirus" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding SelectedPc.DefenderStatus.AntivirusEnabled}" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="RealTime" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SelectedPc.DefenderStatus.RealTimeProtectionEnabled}" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Row="0" Grid.Column="4" Text="Antispyware" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="1" Grid.Column="4" Text="{Binding SelectedPc.DefenderStatus.AntispywareEnabled}" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Row="0" Grid.Column="6" Text="NIS" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="1" Grid.Column="6" Text="{Binding SelectedPc.DefenderStatus.NISEnabled}" FontSize="11" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="エンジン" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="{Binding SelectedPc.DefenderStatus.AMEngineVersion}" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="製品" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding SelectedPc.DefenderStatus.AMProductVersion}" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="4" Text="定義" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="4" Grid.Column="4" Text="{Binding SelectedPc.DefenderStatus.AntivirusSignatureVersion}" FontSize="11"/>
+                                <TextBlock Grid.Row="3" Grid.Column="6" Text="定義更新日" FontSize="10" Foreground="#888"/>
+                                <TextBlock Grid.Row="4" Grid.Column="6" Text="{Binding SelectedPc.DefenderStatus.AntivirusSignatureLastUpdated}" FontSize="11"/>
+                            </Grid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: Windows Update -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,12,0,6"
+                                       Visibility="{Binding HasWindowsUpdates, Converter={StaticResource BoolToVis}}">
+                                <Run Text="WINDOWS UPDATES"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding SelectedPc.WindowsUpdates.Count, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding SelectedPc.WindowsUpdates}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="200"
+                                      Visibility="{Binding HasWindowsUpdates, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="KB" Binding="{Binding HotFixID}" Width="100"/>
+                                    <DataGridTextColumn Header="種別" Binding="{Binding Description}" Width="80"/>
+                                    <DataGridTextColumn Header="インストール者" Binding="{Binding InstalledBy}" Width="180"/>
+                                    <DataGridTextColumn Header="日時" Binding="{Binding InstalledOn}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
                             <!-- セクション: HOSTLIST 突合結果 -->
                             <!-- ============================================ -->
                             <TextBlock Text="HOSTLIST VERIFICATION"

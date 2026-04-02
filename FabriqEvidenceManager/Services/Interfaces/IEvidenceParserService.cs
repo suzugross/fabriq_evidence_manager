@@ -115,4 +115,28 @@ public interface IEvidenceParserService
 
     /// <summary>13_OptionalFeatures.csv からオプション機能一覧を抽出する。</summary>
     IReadOnlyList<OptionalFeatureEntry> ParseOptionalFeatures(string filePath);
+
+    /// <summary>05_UserProfiles.csv からユーザープロファイル一覧を抽出する。</summary>
+    IReadOnlyList<UserProfileEntry> ParseUserProfiles(string filePath);
+
+    /// <summary>08b_Disks.csv から物理ディスク一覧を抽出する。</summary>
+    IReadOnlyList<DiskEntry> ParseDisks(string filePath);
+
+    /// <summary>08b_Partitions.csv からパーティション一覧を抽出する。</summary>
+    IReadOnlyList<PartitionEntry> ParsePartitions(string filePath);
+
+    /// <summary>15_PowerSettings.txt から電源設定を抽出する。</summary>
+    PowerSettingsData ParsePowerSettings(string filePath);
+
+    /// <summary>16_WiFiProfiles.txt からWiFiプロファイル名一覧を抽出する。</summary>
+    IReadOnlyList<string> ParseWiFiProfiles(string filePath);
+
+    /// <summary>17_RestorePoints.csv から復元ポイント一覧を抽出する。</summary>
+    IReadOnlyList<RestorePointEntry> ParseRestorePoints(string filePath);
+
+    /// <summary>18_DefenderStatus.txt からWindows Defender状態を抽出する。</summary>
+    DefenderStatusData ParseDefenderStatus(string filePath);
+
+    /// <summary>19_WindowsUpdates.csv からWindows Update一覧を抽出する。</summary>
+    IReadOnlyList<WindowsUpdateEntry> ParseWindowsUpdates(string filePath);
 }

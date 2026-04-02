@@ -145,6 +145,55 @@ public sealed class ExcelExportService : IExcelExportService
             WriteOptionalFeatureSheet(workbook, pcEvidences);
         }
 
+        // ---- Sheet 11: ユーザープロファイル ----
+        if (pcEvidences.Any(pc => pc.UserProfiles.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteUserProfileSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 12: ディスク・パーティション ----
+        if (pcEvidences.Any(pc => pc.Disks.Count > 0 || pc.Partitions.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteDiskPartitionSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 13: 電源設定 ----
+        if (pcEvidences.Any(pc => pc.PowerSettings is not null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WritePowerSettingsSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 14: WiFiプロファイル ----
+        if (pcEvidences.Any(pc => pc.WiFiProfiles.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteWiFiProfileSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 15: 復元ポイント ----
+        if (pcEvidences.Any(pc => pc.RestorePoints.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteRestorePointSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 16: Windows Defender ----
+        if (pcEvidences.Any(pc => pc.DefenderStatus is not null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteDefenderStatusSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 17: Windows Update ----
+        if (pcEvidences.Any(pc => pc.WindowsUpdates.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteWindowsUpdateSheet(workbook, pcEvidences);
+        }
+
         workbook.SaveAs(outputFilePath);
         return Task.CompletedTask;
     }
@@ -692,6 +741,279 @@ public sealed class ExcelExportService : IExcelExportService
         }
 
         ApplyStyles(ws, row - 2, 3);
+    }
+
+    // ================================================================
+    // Sheet 11: ユーザープロファイル
+    // ================================================================
+
+    private static readonly XLColor ProfileHeaderBg = XLColor.FromHtml("#00838F"); // シアン
+
+    private static void WriteUserProfileSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("ユーザープロファイル");
+
+        SetHeaderCell(ws, 1, 1, "PC名", ProfileHeaderBg);
+        SetHeaderCell(ws, 1, 2, "ローカルパス", ProfileHeaderBg);
+        SetHeaderCell(ws, 1, 3, "SID", ProfileHeaderBg);
+        SetHeaderCell(ws, 1, 4, "最終使用日時", ProfileHeaderBg);
+        SetHeaderCell(ws, 1, 5, "ロード済み", ProfileHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var profile in pc.UserProfiles)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = profile.LocalPath;
+                ws.Cell(row, 3).Value = profile.SID;
+                ws.Cell(row, 4).Value = profile.LastUseTime;
+                ws.Cell(row, 5).Value = profile.Loaded ? "YES" : "NO";
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 5);
+    }
+
+    // ================================================================
+    // Sheet 12: ディスク・パーティション
+    // ================================================================
+
+    private static readonly XLColor DiskHeaderBg = XLColor.FromHtml("#4E342E"); // ブラウン
+
+    private static void WriteDiskPartitionSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("ディスク・パーティション");
+
+        // --- ディスク セクション ---
+        SetHeaderCell(ws, 1, 1, "PC名", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 2, "種別", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 3, "番号", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 4, "名前", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 5, "シリアル番号", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 6, "サイズ(GB)", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 7, "パーティションスタイル", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 8, "正常性", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 9, "動作状態", DiskHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var disk in pc.Disks)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = "ディスク";
+                ws.Cell(row, 3).Value = disk.Number;
+                ws.Cell(row, 4).Value = disk.FriendlyName;
+                ws.Cell(row, 5).Value = disk.SerialNumber;
+                ws.Cell(row, 6).Value = disk.SizeGB;
+                ws.Cell(row, 7).Value = disk.PartitionStyle;
+                ws.Cell(row, 8).Value = disk.HealthStatus;
+                ws.Cell(row, 9).Value = disk.OperationalStatus;
+                row++;
+            }
+
+            foreach (var part in pc.Partitions)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = "パーティション";
+                ws.Cell(row, 3).Value = $"{part.DiskNumber}-{part.PartitionNumber}";
+                ws.Cell(row, 4).Value = part.DriveLetter;
+                ws.Cell(row, 5).Value = "";
+                ws.Cell(row, 6).Value = part.SizeGB;
+                ws.Cell(row, 7).Value = part.Type;
+                ws.Cell(row, 8).Value = part.IsSystem ? "System" : "";
+                ws.Cell(row, 9).Value = part.IsBoot ? "Boot" : "";
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 9);
+    }
+
+    // ================================================================
+    // Sheet 13: 電源設定
+    // ================================================================
+
+    private static readonly XLColor PowerHeaderBg = XLColor.FromHtml("#827717"); // オリーブ
+
+    private static void WritePowerSettingsSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("電源設定");
+
+        SetHeaderCell(ws, 1, 1, "PC名", PowerHeaderBg);
+        SetHeaderCell(ws, 1, 2, "アクティブプラン", PowerHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (pc.PowerSettings is null) continue;
+            ws.Cell(row, 1).Value = pc.PcName;
+            ws.Cell(row, 2).Value = pc.PowerSettings.ActivePlanName;
+            row++;
+        }
+
+        ApplyStyles(ws, row - 2, 2);
+    }
+
+    // ================================================================
+    // Sheet 14: WiFiプロファイル
+    // ================================================================
+
+    private static readonly XLColor WiFiHeaderBg = XLColor.FromHtml("#1565C0"); // ブルー
+
+    private static void WriteWiFiProfileSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("WiFiプロファイル");
+
+        SetHeaderCell(ws, 1, 1, "PC名", WiFiHeaderBg);
+        SetHeaderCell(ws, 1, 2, "プロファイル名", WiFiHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var profile in pc.WiFiProfiles)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = profile;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 2);
+    }
+
+    // ================================================================
+    // Sheet 15: 復元ポイント
+    // ================================================================
+
+    private static readonly XLColor RestoreHeaderBg = XLColor.FromHtml("#AD1457"); // ピンク
+
+    private static void WriteRestorePointSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("復元ポイント");
+
+        SetHeaderCell(ws, 1, 1, "PC名", RestoreHeaderBg);
+        SetHeaderCell(ws, 1, 2, "シーケンス番号", RestoreHeaderBg);
+        SetHeaderCell(ws, 1, 3, "説明", RestoreHeaderBg);
+        SetHeaderCell(ws, 1, 4, "種類", RestoreHeaderBg);
+        SetHeaderCell(ws, 1, 5, "作成日時", RestoreHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var rp in pc.RestorePoints)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = rp.SequenceNumber;
+                ws.Cell(row, 3).Value = rp.Description;
+                ws.Cell(row, 4).Value = rp.RestorePointType;
+                ws.Cell(row, 5).Value = rp.CreationTime;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 5);
+    }
+
+    // ================================================================
+    // Sheet 16: Windows Defender
+    // ================================================================
+
+    private static readonly XLColor DefenderHeaderBg = XLColor.FromHtml("#1B5E20"); // ダークグリーン
+
+    private static void WriteDefenderStatusSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("Windows Defender");
+
+        SetHeaderCell(ws, 1, 1, "PC名", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 2, "AMService", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 3, "Antispyware", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 4, "Antivirus", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 5, "リアルタイム保護", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 6, "動作監視", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 7, "IOAV保護", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 8, "NIS", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 9, "オンアクセス保護", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 10, "エンジンVer", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 11, "製品Ver", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 12, "定義Ver", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 13, "定義更新日", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 14, "クイックスキャン", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 15, "フルスキャン", DefenderHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (pc.DefenderStatus is null) continue;
+            var d = pc.DefenderStatus;
+            ws.Cell(row, 1).Value = pc.PcName;
+            ws.Cell(row, 2).Value = d.AMServiceEnabled ? "ON" : "OFF";
+            ws.Cell(row, 3).Value = d.AntispywareEnabled ? "ON" : "OFF";
+            ws.Cell(row, 4).Value = d.AntivirusEnabled ? "ON" : "OFF";
+            ws.Cell(row, 5).Value = d.RealTimeProtectionEnabled ? "ON" : "OFF";
+            ws.Cell(row, 6).Value = d.BehaviorMonitorEnabled ? "ON" : "OFF";
+            ws.Cell(row, 7).Value = d.IoavProtectionEnabled ? "ON" : "OFF";
+            ws.Cell(row, 8).Value = d.NISEnabled ? "ON" : "OFF";
+            ws.Cell(row, 9).Value = d.OnAccessProtectionEnabled ? "ON" : "OFF";
+
+            // ON/OFF セルの色分け
+            for (var col = 2; col <= 9; col++)
+            {
+                var cell = ws.Cell(row, col);
+                if (cell.GetString() == "ON")
+                    cell.Style.Font.FontColor = MatchFont;
+                else
+                {
+                    cell.Style.Font.FontColor = MismatchFont;
+                    cell.Style.Font.Bold = true;
+                }
+            }
+
+            ws.Cell(row, 10).Value = d.AMEngineVersion;
+            ws.Cell(row, 11).Value = d.AMProductVersion;
+            ws.Cell(row, 12).Value = d.AntivirusSignatureVersion;
+            ws.Cell(row, 13).Value = d.AntivirusSignatureLastUpdated;
+            ws.Cell(row, 14).Value = d.QuickScanEndTime;
+            ws.Cell(row, 15).Value = d.FullScanEndTime;
+            row++;
+        }
+
+        ApplyStyles(ws, row - 2, 15);
+    }
+
+    // ================================================================
+    // Sheet 17: Windows Update
+    // ================================================================
+
+    private static readonly XLColor UpdateHeaderBg = XLColor.FromHtml("#283593"); // インディゴ
+
+    private static void WriteWindowsUpdateSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("Windows Update");
+
+        SetHeaderCell(ws, 1, 1, "PC名", UpdateHeaderBg);
+        SetHeaderCell(ws, 1, 2, "HotFixID", UpdateHeaderBg);
+        SetHeaderCell(ws, 1, 3, "説明", UpdateHeaderBg);
+        SetHeaderCell(ws, 1, 4, "インストール者", UpdateHeaderBg);
+        SetHeaderCell(ws, 1, 5, "インストール日", UpdateHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var update in pc.WindowsUpdates)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = update.HotFixID;
+                ws.Cell(row, 3).Value = update.Description;
+                ws.Cell(row, 4).Value = update.InstalledBy;
+                ws.Cell(row, 5).Value = update.InstalledOn;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 5);
     }
 
     // ================================================================

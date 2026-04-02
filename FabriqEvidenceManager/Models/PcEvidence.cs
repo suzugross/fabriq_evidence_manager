@@ -51,6 +51,30 @@ public sealed partial class PcEvidence : ObservableObject
     /// <summary>Windowsオプション機能一覧</summary>
     public List<OptionalFeatureEntry> OptionalFeatures { get; } = [];
 
+    /// <summary>ユーザープロファイル一覧</summary>
+    public List<UserProfileEntry> UserProfiles { get; } = [];
+
+    /// <summary>物理ディスク一覧</summary>
+    public List<DiskEntry> Disks { get; } = [];
+
+    /// <summary>パーティション一覧</summary>
+    public List<PartitionEntry> Partitions { get; } = [];
+
+    /// <summary>電源設定</summary>
+    public PowerSettingsData? PowerSettings { get; set; }
+
+    /// <summary>WiFiプロファイル名一覧</summary>
+    public List<string> WiFiProfiles { get; } = [];
+
+    /// <summary>復元ポイント一覧</summary>
+    public List<RestorePointEntry> RestorePoints { get; } = [];
+
+    /// <summary>Windows Defender 状態</summary>
+    public DefenderStatusData? DefenderStatus { get; set; }
+
+    /// <summary>Windows Update 一覧</summary>
+    public List<WindowsUpdateEntry> WindowsUpdates { get; } = [];
+
     // ---- evidence ソースパス群 (ファイル収集機能で使用) ----
 
     /// <summary>pc_information ディレクトリの絶対パス</summary>

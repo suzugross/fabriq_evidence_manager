@@ -18,10 +18,6 @@ public sealed class DomainStatusData
     public string DomainName { get; init; } = string.Empty;
     public string TenantName { get; init; } = string.Empty;
 
-    // ---- ドメインユーザー・グループ (ドメイン参加時のみ実データ) ----
-    public List<string> DomainUsers { get; init; } = [];
-    public List<string> DomainGroups { get; init; } = [];
-
     /// <summary>セクション名 → (Key → Value) の全量データ</summary>
     public Dictionary<string, Dictionary<string, string>> Sections { get; init; } = [];
 }
