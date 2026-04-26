@@ -225,6 +225,11 @@ public sealed class ExcelExportService : IExcelExportService
                 cancellationToken.ThrowIfCancellationRequested();
                 WriteBaselineLicenseSheet(workbook, single, options.BaselineReports);
             }
+            if (br.DomainStatusComparison is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBaselineDomainStatusSheet(workbook, single, options.BaselineReports);
+            }
         }
         if (pc.LocalUsers.Count > 0 || pc.LocalGroups.Count > 0)
         {
@@ -926,6 +931,40 @@ public sealed class ExcelExportService : IExcelExportService
 
             // 差分行 (Match 以外のみ)
             foreach (var item in apps.Items)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = item.ItemName;
+                ws.Cell(row, 3).Value = item.Expected;
+                ws.Cell(row, 4).Value = item.Actual;
+                ApplyVerificationStatusToCell(ws.Cell(row, 5), item.Status, ws.Range(row, 1, row, 5));
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 5);
+    }
+
+    /// <summary>ベースライン突合 — ドメイン参加状態 (7 項目固定)</summary>
+    private static void WriteBaselineDomainStatusSheet(
+        IXLWorkbook workbook,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
+    {
+        var ws = workbook.Worksheets.Add("ベースライン_ドメイン");
+
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 2, "項目", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 3, "期待値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 4, "実測値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 5, "判定", BaselineHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (!reports.TryGetValue(pc, out var report)) continue;
+            if (report.DomainStatusComparison is null) continue;
+
+            foreach (var item in report.DomainStatusComparison.Items)
             {
                 ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = item.ItemName;
