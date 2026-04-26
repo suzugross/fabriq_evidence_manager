@@ -1,0 +1,18 @@
+{
+    "schemaVersion": 2,
+    "manifestType": "fabriq-evidence-manifest",
+    "evidenceConfigVersion": "2.0.0",
+    "fabriqKernelVersion": "3.0.0",
+    "collectedAt": "2027-01-01T00:00:00+09:00",
+    "computerName": "FUTURE-PC",
+    "hardwareUniqueId": "FUTURE-X",
+    "selectedNewPcName": "FUTURE-PC",
+    "sections": [],
+    "summary": {
+        "sectionCount": 0,
+        "successCount": 0,
+        "skippedCount": 0,
+        "failedCount": 0,
+        "partialCount": 0
+    }
+}

@@ -1,0 +1,7 @@
+Hostname:
+OS Name:
+Version:
+CPU:
+Memory:
+TimeZone:
+Locale:

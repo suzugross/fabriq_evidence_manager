@@ -1,0 +1,19 @@
+
+========================================
+Windows License / Activation Status
+========================================
+---- SoftwareLicensingProduct (per-product) ----
+Name:                  Windows(R), Professional edition
+  Description:         Windows(R) Operating System, VOLUME_KMSCLIENT channel
+  LicenseStatus:       FutureMode (99)
+  PartialProductKey:   ABCDE
+  LicenseFamily:       Professional
+  ProductKeyChannel:   Volume:GVLK
+
+---- SoftwareLicensingService (machine-wide) ----
+ClientMachineID:             test
+KeyManagementServiceMachine:
+KeyManagementServicePort:    1688
+OA3xOriginalProductKey:
+OA3xOriginalProductKeyDescription:
+PolicyCacheRefreshRequired:  0

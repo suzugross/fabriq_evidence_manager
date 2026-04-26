@@ -1,0 +1,33 @@
+
+========================================
+Office License / Activation Status
+========================================
+---- Office Click-to-Run Configuration (registry) ----
+ProductReleaseIds: ProPlus2024Volume
+VersionToReport:   16.0.17932.20742
+Platform:          x64
+CDNBaseUrl:        http://officecdn.microsoft.com/pr/test
+UpdateChannel:     http://officecdn.microsoft.com/pr/test
+AudienceData:      Production::LTSC2024
+ClientCulture:     ja-jp
+
+---- OSPP.vbs path ----
+C:\Program Files\Microsoft Office\Office16\OSPP.vbs
+
+---- cscript OSPP.vbs /dstatus (raw) ----
+  ---Processing--------------------------
+  ---------------------------------------
+  PRODUCT ID: 00502-40000-00000-AA709
+  SKU ID: 8d368fc1-9470-4be2-8d66-90e836cbb051
+  LICENSE NAME: Office 24, Office24ProPlus2024VL_KMS_Client_AE edition
+  LICENSE DESCRIPTION: Office 24, VOLUME_KMSCLIENT channel
+  LICENSE STATUS:  ---OOB_GRACE---
+  ERROR CODE: 0x4004F00C
+  ERROR DESCRIPTION: The Software Licensing Service reported that the application is running within the valid grace period.
+  REMAINING GRACE: 29 days  (43197 minute(s) before expiring)
+  Last 5 characters of installed product key: GCVGB
+  Activation Type Configuration: ALL
+  ---------------------------------------
+  ---------------------------------------
+  ---Exiting-----------------------------
+

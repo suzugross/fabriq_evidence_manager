@@ -1,0 +1,28 @@
+
+========================================
+Windows License / Activation Status
+========================================
+---- SoftwareLicensingProduct (per-product) ----
+Name:                  Windows(R), Professional edition
+  Description:         Windows(R) Operating System, VOLUME_KMSCLIENT channel
+  LicenseStatus:       Notification Mode (5)
+  PartialProductKey:   T83GX
+  LicenseFamily:       Professional
+  ProductKeyChannel:   Volume:GVLK
+
+---- SoftwareLicensingService (machine-wide) ----
+ClientMachineID:             ea22380e-56e8-4fb3-93fd-5224be9ce264
+KeyManagementServiceMachine:
+KeyManagementServicePort:    1688
+OA3xOriginalProductKey:
+OA3xOriginalProductKeyDescription:
+PolicyCacheRefreshRequired:  0
+
+---- slmgr /dlv (raw) ----
+  ソフトウェア ライセンス サービス バージョン: 10.0.26100.7920
+  名前: Windows(R), Professional edition
+  プロダクト キーの一部: T83GX
+  ライセンスの状態: 通知
+
+---- Selection Policy ----
+Priority: Win32_BIOS.SerialNumber -> Win32_ComputerSystemProduct.IdentifyingNumber

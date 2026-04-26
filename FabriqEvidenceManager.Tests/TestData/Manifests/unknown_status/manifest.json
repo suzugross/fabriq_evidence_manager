@@ -1,0 +1,27 @@
+{
+    "schemaVersion": 1,
+    "manifestType": "fabriq-evidence-manifest",
+    "evidenceConfigVersion": "1.3.0",
+    "fabriqKernelVersion": "2.2.2",
+    "collectedAt": "2026-04-26T15:00:00+09:00",
+    "computerName": "TEST-PC-X",
+    "hardwareUniqueId": "TEST-X",
+    "selectedNewPcName": "TEST-PC-X",
+    "sections": [
+        {
+            "id": "99",
+            "title": "Future Section",
+            "files": ["99_Future.txt"],
+            "status": "InProgress",
+            "reason": "future status enum value",
+            "elapsedMs": 0
+        }
+    ],
+    "summary": {
+        "sectionCount": 1,
+        "successCount": 0,
+        "skippedCount": 0,
+        "failedCount": 0,
+        "partialCount": 0
+    }
+}

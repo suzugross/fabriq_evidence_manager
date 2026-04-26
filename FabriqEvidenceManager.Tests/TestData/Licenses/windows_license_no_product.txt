@@ -1,0 +1,17 @@
+
+========================================
+Windows License / Activation Status
+========================================
+---- SoftwareLicensingProduct (per-product) ----
+(No installed Windows product key found)
+
+---- SoftwareLicensingService (machine-wide) ----
+ClientMachineID:             test-id
+KeyManagementServiceMachine:
+KeyManagementServicePort:    1688
+OA3xOriginalProductKey:
+OA3xOriginalProductKeyDescription:
+PolicyCacheRefreshRequired:  0
+
+---- slmgr /dlv (raw) ----
+  (no products)
