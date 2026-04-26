@@ -56,6 +56,22 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly string ManagerVersion =
         typeof(ExcelExportService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
+    /// <summary>Excel セル 1 個あたりの最大文字数 (ClosedXML / .xlsx 仕様)</summary>
+    private const int ExcelCellMaxChars = 32_767;
+
+    /// <summary>
+    /// 32,767 文字を超えるテキストを安全にセルに収まるよう切り詰める。
+    /// 切り詰め時は末尾に [TRUNCATED] マーカーを付与して欠損を明示する。
+    /// メモ / 未知 section raw 等、長文の可能性があるセル値で使用。
+    /// </summary>
+    private static string TruncateForCell(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        if (text.Length <= ExcelCellMaxChars) return text;
+        const string marker = "\n... [TRUNCATED]";
+        return text[..(ExcelCellMaxChars - marker.Length)] + marker;
+    }
+
     public Task ExportAsync(
         IReadOnlyList<PcEvidence> pcEvidences,
         string outputFilePath,
@@ -76,7 +92,8 @@ public sealed class ExcelExportService : IExcelExportService
 
         var totalColumns = FixedColumnCount
                            + maxNicCount * NicSubColumnCount
-                           + allDriveLetters.Count * DriveSubColumnCount;
+                           + allDriveLetters.Count * DriveSubColumnCount
+                           + 1;   // 管理者メモ列 (末尾)
 
         // ===== STEP 1: PC -> 詳細ファイル相対パスを pre-compute =====
         // 詳細データを持つ PC のみエントリ化 (ファイル衝突回避を伴う)
@@ -365,6 +382,9 @@ public sealed class ExcelExportService : IExcelExportService
             SetHeaderCell(ws, headerRow, col++, $"{drive}ドライブ_キーID", KeyHeaderBg);
             SetHeaderCell(ws, headerRow, col++, $"{drive}ドライブ_回復キー", KeyHeaderBg);
         }
+
+        // 管理者メモ列 (末尾固定、wrap text)
+        SetHeaderCell(ws, headerRow, col++, "管理者メモ", BaseHeaderBg);
     }
 
     /// <summary>
@@ -554,6 +574,11 @@ public sealed class ExcelExportService : IExcelExportService
                 col += DriveSubColumnCount;
             }
         }
+
+        // 管理者メモ (末尾、wrap text、32,767 文字超は truncate)
+        var memoCell = ws.Cell(row, col++);
+        memoCell.Value = TruncateForCell(pc.Memo?.Text);
+        memoCell.Style.Alignment.WrapText = true;
     }
 
     // ================================================================
@@ -673,7 +698,7 @@ public sealed class ExcelExportService : IExcelExportService
                 verifiedCell.Value = module.VerifiedStatus;
                 ApplyStatusColor(verifiedCell, module.VerifiedStatus);
                 ws.Cell(row, 8).Value = module.Time;
-                ws.Cell(row, 9).Value = module.Message;
+                ws.Cell(row, 9).Value = TruncateForCell(module.Message);
                 row++;
             }
         }
@@ -716,7 +741,7 @@ public sealed class ExcelExportService : IExcelExportService
                 var statusCell = ws.Cell(row, 5);
                 statusCell.Value = entry.Status;
                 ApplyStatusColor(statusCell, entry.Status);
-                ws.Cell(row, 6).Value = entry.Message;
+                ws.Cell(row, 6).Value = TruncateForCell(entry.Message);
                 ws.Cell(row, 7).Value = entry.Worker;
                 ws.Cell(row, 8).Value = entry.SessionID;
                 row++;
@@ -1081,7 +1106,7 @@ public sealed class ExcelExportService : IExcelExportService
                 ws.Cell(row, 4).Value = user.Enabled ? "有効" : "無効";
                 if (!user.Enabled) ws.Cell(row, 4).Style.Font.FontColor = XLColor.Gray;
                 ws.Cell(row, 5).Value = user.FullName;
-                ws.Cell(row, 6).Value = user.Description;
+                ws.Cell(row, 6).Value = TruncateForCell(user.Description);
                 ws.Cell(row, 7).Value = user.PrincipalSource;
                 ws.Cell(row, 8).Value = user.LastLogon;
                 row++;
@@ -1094,7 +1119,7 @@ public sealed class ExcelExportService : IExcelExportService
                 ws.Cell(row, 3).Value = group.Name;
                 ws.Cell(row, 4).Value = "";
                 ws.Cell(row, 5).Value = "";
-                ws.Cell(row, 6).Value = group.Description;
+                ws.Cell(row, 6).Value = TruncateForCell(group.Description);
                 row++;
             }
 
@@ -1419,7 +1444,7 @@ public sealed class ExcelExportService : IExcelExportService
             {
                 ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = rp.SequenceNumber;
-                ws.Cell(row, 3).Value = rp.Description;
+                ws.Cell(row, 3).Value = TruncateForCell(rp.Description);
                 ws.Cell(row, 4).Value = rp.RestorePointType;
                 ws.Cell(row, 5).Value = rp.CreationTime;
                 row++;
@@ -1518,7 +1543,7 @@ public sealed class ExcelExportService : IExcelExportService
             {
                 ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = update.HotFixID;
-                ws.Cell(row, 3).Value = update.Description;
+                ws.Cell(row, 3).Value = TruncateForCell(update.Description);
                 ws.Cell(row, 4).Value = update.InstalledBy;
                 ws.Cell(row, 5).Value = update.InstalledOn;
                 row++;
@@ -1766,7 +1791,7 @@ public sealed class ExcelExportService : IExcelExportService
                 ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = Path.GetFileName(section.FilePath);
                 ws.Cell(row, 3).Value = section.FileType.ToString();
-                ws.Cell(row, 4).Value = section.RawContent;
+                ws.Cell(row, 4).Value = TruncateForCell(section.RawContent);
                 ws.Cell(row, 4).Style.Alignment.WrapText = true;
                 ws.Cell(row, 4).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
                 row++;

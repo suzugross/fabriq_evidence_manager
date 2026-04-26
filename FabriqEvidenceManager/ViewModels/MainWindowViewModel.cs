@@ -34,11 +34,15 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IEvidenceVerificationService _verificationService;
     private readonly IChecklistParserService _checklistParserService;
     private readonly IBaselineService _baselineService;
+    private readonly IPcMemoService _memoService;
     private readonly DispatcherTimer _autoReloadTimer;
     private bool _isRefreshing;
 
     /// <summary>自動リロード間隔 (秒)</summary>
     private const int AutoReloadIntervalSeconds = 30;
+
+    /// <summary>PC 詳細ウィンドウ作成用に MainWindow.xaml.cs から参照</summary>
+    public IPcMemoService MemoService => _memoService;
 
     public MainWindowViewModel(
         NestedEvidenceDiscoveryService nestedDiscovery,
@@ -48,7 +52,8 @@ public partial class MainWindowViewModel : ObservableObject
         IHostlistService hostlistService,
         IEvidenceVerificationService verificationService,
         IChecklistParserService checklistParserService,
-        IBaselineService baselineService)
+        IBaselineService baselineService,
+        IPcMemoService memoService)
     {
         _nestedDiscovery = nestedDiscovery;
         _parserService = parserService;
@@ -58,6 +63,7 @@ public partial class MainWindowViewModel : ObservableObject
         _verificationService = verificationService;
         _checklistParserService = checklistParserService;
         _baselineService = baselineService;
+        _memoService = memoService;
 
         TargetPCsView = CollectionViewSource.GetDefaultView(TargetPCs);
         TargetPCsView.Filter = FilterPcEvidence;

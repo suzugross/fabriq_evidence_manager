@@ -157,6 +157,23 @@ public sealed partial class PcEvidence : ObservableObject
     /// </summary>
     public List<UnknownSection> UnknownSections { get; } = [];
 
+    /// <summary>
+    /// PC ルートディレクトリの絶対パス (例: タイムスタンプ付き
+    /// "..._evidence" フォルダ)。manager_memo.json の保存先。
+    /// </summary>
+    public string? PcRootDirectoryPath { get; set; }
+
+    /// <summary>
+    /// 管理者が残した PC 単位メモ (未設定時 null)。
+    /// PC ルート/manager_memo.json から Discovery 時に読み込まれる。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMemo))]
+    private PcMemo? _memo;
+
+    /// <summary>メモ本文が存在するか (DataGrid メモアイコン表示用)</summary>
+    public bool HasMemo => Memo is not null && !string.IsNullOrEmpty(Memo.Text);
+
     /// <summary>Windows ライセンス / アクティベーション状態 (evidence_config v1.3.0+ §21)</summary>
     [ObservableProperty]
     private WindowsLicenseData? _windowsLicense;

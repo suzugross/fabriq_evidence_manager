@@ -23,10 +23,14 @@ namespace FabriqEvidenceManager.Services;
 public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
 {
     private readonly IManifestReaderService _manifestReader;
+    private readonly IPcMemoService _memoService;
 
-    public NestedEvidenceDiscoveryService(IManifestReaderService manifestReader)
+    public NestedEvidenceDiscoveryService(
+        IManifestReaderService manifestReader,
+        IPcMemoService memoService)
     {
         _manifestReader = manifestReader;
+        _memoService = memoService;
     }
 
     public Task<IReadOnlyList<PcEvidence>> DiscoverAsync(
@@ -77,6 +81,14 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
 
         var key = $"{pcName}\t{serial}\t{date}";
         var pc = GetOrMerge(mergedMap, key, pcName, serial, date);
+
+        // PC ルートディレクトリ (= evidence/ の親) を記録 + メモ読み込み
+        var pcRootDir = Path.GetDirectoryName(evidencePath);
+        if (pcRootDir is not null)
+        {
+            pc.PcRootDirectoryPath = pcRootDir;
+            pc.Memo = _memoService.Load(pcRootDir);
+        }
 
         var pcInfoPath = Path.Combine(evidencePath, EvidenceConstants.DirPcInformation);
         if (Directory.Exists(pcInfoPath))

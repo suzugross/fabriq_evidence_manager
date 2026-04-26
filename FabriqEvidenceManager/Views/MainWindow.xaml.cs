@@ -31,7 +31,8 @@ public partial class MainWindow : Window
             verification: vm.CurrentVerificationReport,
             checklist: vm.CurrentChecklistResult,
             history: vm.CurrentExportHistory,
-            baseline: vm.CurrentBaselineReport);
+            baseline: vm.CurrentBaselineReport,
+            memoService: vm.MemoService);
 
         var detailWindow = new PcDetailWindow(detailVm) { Owner = this };
         detailWindow.Show();

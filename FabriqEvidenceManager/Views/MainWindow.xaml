@@ -254,19 +254,28 @@
                     </DataGrid.RowStyle>
 
                     <DataGrid.Columns>
-                        <!-- 計画 PC 名 (hostlist で選択された名前 = manifest.selectedNewPcName) -->
-                        <DataGridTextColumn Header="計画 PC 名"
-                                            Binding="{Binding PcName}"
-                                            MinWidth="100"
-                                            Width="SizeToCells">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="Foreground" Value="#222222"/>
-                                    <Setter Property="Padding" Value="4,2"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                        <!-- 計画 PC 名 (hostlist で選択された名前 = manifest.selectedNewPcName)
+                             + メモ有り PC には末尾に 📝 アイコン (HasMemo=true 時) -->
+                        <DataGridTemplateColumn Header="計画 PC 名"
+                                                MinWidth="100"
+                                                Width="SizeToCells">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding PcName}"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#222222"
+                                                   Padding="4,2"/>
+                                        <TextBlock Text=" 📝"
+                                                   FontSize="11"
+                                                   Foreground="#1565C0"
+                                                   ToolTip="管理者メモあり"
+                                                   VerticalAlignment="Center"
+                                                   Visibility="{Binding HasMemo, Converter={StaticResource BoolToVis}}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
                         <!-- 実 PC 名 (manifest.computerName = $env:COMPUTERNAME / rename 後の現在の名前) -->
                         <DataGridTextColumn Header="実 PC 名"

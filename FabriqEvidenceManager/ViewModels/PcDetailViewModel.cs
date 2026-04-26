@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -5,6 +6,7 @@ using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FabriqEvidenceManager.Models;
+using FabriqEvidenceManager.Services.Interfaces;
 
 namespace FabriqEvidenceManager.ViewModels;
 
@@ -84,6 +86,18 @@ public sealed partial class PcDetailViewModel : ObservableObject
     private void PreviousPreviewImage() => CurrentPreviewIndex--;
     private bool CanGoPrevious() => CurrentPreviewIndex > 0;
 
+    private readonly IPcMemoService _memoService;
+
+    /// <summary>編集中のメモ本文 (UI バインド)。SaveMemoCommand で永続化。</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveMemoCommand))]
+    private string _memoText = string.Empty;
+
+    /// <summary>最終更新日時/更新者 表示用文字列</summary>
+    public string MemoLastUpdatedDisplay => Pc.Memo is null
+        ? "(未保存)"
+        : $"最終更新: {Pc.Memo.LastUpdatedAt:yyyy/MM/dd HH:mm} ({Pc.Memo.LastUpdatedBy})";
+
     public PcDetailViewModel(
         PcEvidence pc,
         EvidenceCheckOptions checkOptions,
@@ -92,7 +106,8 @@ public sealed partial class PcDetailViewModel : ObservableObject
         VerificationReport? verification,
         ChecklistResult? checklist,
         IReadOnlyList<ExportHistoryEntry>? history,
-        BaselineComparisonReport? baseline)
+        BaselineComparisonReport? baseline,
+        IPcMemoService memoService)
     {
         Pc = pc;
         CheckOptions = checkOptions;
@@ -102,13 +117,36 @@ public sealed partial class PcDetailViewModel : ObservableObject
         ChecklistResult = checklist;
         ExportHistory = history;
         BaselineReport = baseline;
+        _memoService = memoService;
 
         ChecklistFileName = pc.ChecklistFilePath is not null && File.Exists(pc.ChecklistFilePath)
             ? Path.GetFileName(pc.ChecklistFilePath)
             : null;
 
+        // 既存メモがあればロード
+        MemoText = pc.Memo?.Text ?? string.Empty;
+
         LoadPreviewImages();
     }
+
+    /// <summary>メモを永続化する。PcRootDirectoryPath が無い場合は実行不可。</summary>
+    [RelayCommand(CanExecute = nameof(CanSaveMemo))]
+    private void SaveMemo()
+    {
+        if (Pc.PcRootDirectoryPath is null) return;
+
+        var memo = new PcMemo
+        {
+            Text = MemoText,
+            LastUpdatedAt = DateTimeOffset.Now,
+            LastUpdatedBy = Environment.UserName,
+        };
+        _memoService.Save(Pc.PcRootDirectoryPath, memo);
+        Pc.Memo = memo;
+        OnPropertyChanged(nameof(MemoLastUpdatedDisplay));
+    }
+
+    private bool CanSaveMemo() => Pc.PcRootDirectoryPath is not null;
 
     private void LoadPreviewImages()
     {
