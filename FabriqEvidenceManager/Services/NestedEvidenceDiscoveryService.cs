@@ -16,10 +16,19 @@ namespace FabriqEvidenceManager.Services;
 /// 形式: {timestamp}_{PCName}_{SerialNumber}_evidence/evidence/{category}/ファイル直接配置
 ///   → 親フォルダ名から PC 情報を取得し、カテゴリフォルダのパスを直接割り当て。
 ///
-/// <c>_evidence</c> サフィックスを持つフォルダのみを対象とする。
+/// 各 PC の pc_information/manifest.json を <see cref="IManifestReaderService"/> で読み込み、
+/// <see cref="PcEvidence.Manifest"/> または <see cref="PcEvidence.ManifestError"/> に格納する。
+/// manifest 不在 PC は ManifestError 経由で UI に表示され、本サービスは load を中断しない。
 /// </summary>
 public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
 {
+    private readonly IManifestReaderService _manifestReader;
+
+    public NestedEvidenceDiscoveryService(IManifestReaderService manifestReader)
+    {
+        _manifestReader = manifestReader;
+    }
+
     public Task<IReadOnlyList<PcEvidence>> DiscoverAsync(
         string evidenceRootPath,
         CancellationToken cancellationToken = default)
@@ -27,10 +36,8 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
         if (!Directory.Exists(evidenceRootPath))
             throw new DirectoryNotFoundException($"evidence ルートが見つかりません: {evidenceRootPath}");
 
-        // PC名+シリアル+収集日の複合キーで最終的に集約
         var mergedMap = new Dictionary<string, PcEvidence>(StringComparer.OrdinalIgnoreCase);
 
-        // フォルダ名順ソートで同日再キッティング時に最新が後勝ち
         var pcFolders = Directory.EnumerateDirectories(evidenceRootPath)
             .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase);
 
@@ -39,8 +46,6 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
             cancellationToken.ThrowIfCancellationRequested();
 
             var folderName = Path.GetFileName(pcFolder);
-
-            // _evidence サフィックスを持つフォルダのみ対象
             if (!EvidencePathParser.IsNewFormatFolder(folderName))
                 continue;
 
@@ -59,11 +64,10 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
     }
 
     /// <summary>
-    /// フォルダを処理する。
-    /// 親フォルダ名から PC名・SN・日付をパースし、evidence/ 内のカテゴリフォルダを
-    /// サブディレクトリ走査なしで直接割り当てる。
+    /// フォルダを処理する。親フォルダ名から PC 名・SN・日付をパースし、
+    /// evidence/ 配下のカテゴリフォルダを直接割り当てたうえで manifest.json を読み込む。
     /// </summary>
-    private static void ProcessFolder(
+    private void ProcessFolder(
         string folderName,
         string evidencePath,
         Dictionary<string, PcEvidence> mergedMap)
@@ -74,49 +78,68 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
         var key = $"{pcName}\t{serial}\t{date}";
         var pc = GetOrMerge(mergedMap, key, pcName, serial, date);
 
-        // ----- pc_information (フラット: ファイル直接配置) -----
         var pcInfoPath = Path.Combine(evidencePath, EvidenceConstants.DirPcInformation);
         if (Directory.Exists(pcInfoPath))
+        {
             pc.PcInformationDirectoryPath = pcInfoPath;
+            ReadManifest(pc, pcInfoPath);
+        }
 
-        // ----- auto_capture (フラット: ファイル直接配置) -----
         var autoCapturePath = Path.Combine(evidencePath, EvidenceConstants.DirAutoCapture);
         if (Directory.Exists(autoCapturePath))
             pc.AutoCaptureDirectoryPath = autoCapturePath;
 
-        // ----- bitlocker (フラット: ファイル直接配置) -----
         var bitlockerPath = Path.Combine(evidencePath, EvidenceConstants.DirBitLocker);
         if (Directory.Exists(bitlockerPath))
             pc.BitLockerDirectoryPath = bitlockerPath;
 
-        // ----- checklist (ファイル単体を探索) -----
         var checklistDir = Path.Combine(evidencePath, EvidenceConstants.DirChecklist);
         if (Directory.Exists(checklistDir))
         {
             var checklistFile = Directory.EnumerateFiles(checklistDir)
                 .Where(f => Path.GetFileName(f).StartsWith(EvidenceConstants.PrefixChecklist, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .LastOrDefault(); // 名前順で最新を採用
+                .LastOrDefault();
             if (checklistFile is not null)
                 pc.ChecklistFilePath = checklistFile;
         }
 
-        // ----- export_history (ファイル単体を探索) -----
         var historyDir = Path.Combine(evidencePath, EvidenceConstants.DirExportHistory);
         if (Directory.Exists(historyDir))
         {
             var historyFile = Directory.EnumerateFiles(historyDir)
                 .Where(f => Path.GetFileName(f).StartsWith(EvidenceConstants.PrefixExportHistory, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .LastOrDefault(); // 名前順で最新を採用
+                .LastOrDefault();
             if (historyFile is not null)
                 pc.ExportHistoryFilePath = historyFile;
         }
     }
 
     /// <summary>
-    /// 複合キーで既存の PcEvidence を取得するか、新規作成して mergedMap に登録する。
+    /// manifest.json を読み込み、結果またはエラーメッセージを <see cref="PcEvidence"/> に格納する。
     /// </summary>
+    private void ReadManifest(PcEvidence pc, string pcInformationDirectoryPath)
+    {
+        try
+        {
+            pc.Manifest = _manifestReader.Read(pcInformationDirectoryPath);
+            pc.ManifestError = null;
+        }
+        catch (ManifestNotFoundException ex)
+        {
+            pc.ManifestError = $"manifest.json 不在: {ex.Path}";
+        }
+        catch (UnsupportedManifestSchemaException ex)
+        {
+            pc.ManifestError = ex.Message;
+        }
+        catch (ManifestParseException ex)
+        {
+            pc.ManifestError = $"manifest 解析失敗: {ex.Message}";
+        }
+    }
+
     private static PcEvidence GetOrMerge(
         Dictionary<string, PcEvidence> map,
         string key,

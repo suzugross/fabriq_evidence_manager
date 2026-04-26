@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using ClosedXML.Excel;
@@ -38,13 +40,19 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor VerifyHeaderBg = XLColor.FromHtml("#7030A0");     // 紫: 突合
     private static readonly XLColor ChecklistHeaderBg = XLColor.FromHtml("#C55A11");  // オレンジ: チェックリスト
     private static readonly XLColor HistoryHeaderBg = XLColor.FromHtml("#538DD5");    // 水色: 実行履歴
+    private static readonly XLColor LicenseHeaderBg = XLColor.FromHtml("#7B1FA2");    // 紫: ライセンス監査
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
     private static readonly XLColor MatchBg = XLColor.FromHtml("#E2EFDA");       // 薄緑
     private static readonly XLColor MismatchBg = XLColor.FromHtml("#FCE4EC");    // 薄赤
+    private static readonly XLColor InfoBg = XLColor.FromHtml("#F5F5F5");        // 薄グレー: 情報行 (Office 未インストール等)
     private static readonly XLColor MismatchFont = XLColor.FromHtml("#C62828");  // 赤文字
     private static readonly XLColor MatchFont = XLColor.FromHtml("#2E7D32");     // 緑文字
+
+    /// <summary>未知 section シート用の本アプリのバージョン (manifest 経由の前方互換情報)</summary>
+    private static readonly string ManagerVersion =
+        typeof(ExcelExportService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
 
     public Task ExportAsync(
         IReadOnlyList<PcEvidence> pcEvidences,
@@ -72,15 +80,24 @@ public sealed class ExcelExportService : IExcelExportService
 
         // ---- Sheet 1: PC情報一覧 ----
         var ws = workbook.Worksheets.Add(EvidenceConstants.ExcelSheetName);
-        WriteMainHeader(ws, maxNicCount, allDriveLetters);
+
+        // M6: 案件メタデータブロック (1〜6 行目)。DeliveryMetadata 指定時のみ出力。
+        var headerRow = 1;
+        if (options?.DeliveryMetadata is not null)
+        {
+            WriteDeliveryMetadataBlock(ws, options.DeliveryMetadata, pcEvidences, options);
+            headerRow = 7;
+        }
+
+        WriteMainHeader(ws, headerRow, maxNicCount, allDriveLetters);
 
         for (var i = 0; i < pcEvidences.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            WriteMainDataRow(ws, row: i + 2, pcEvidences[i], maxNicCount, allDriveLetters, options);
+            WriteMainDataRow(ws, row: headerRow + 1 + i, pcEvidences[i], maxNicCount, allDriveLetters, options);
         }
 
-        ApplyStyles(ws, pcEvidences.Count, totalColumns);
+        ApplyStyles(ws, pcEvidences.Count, totalColumns, headerRow);
 
         // ---- Sheet 2: 突合詳細 ----
         if (options?.VerificationReports is { Count: > 0 })
@@ -194,6 +211,27 @@ public sealed class ExcelExportService : IExcelExportService
             WriteWindowsUpdateSheet(workbook, pcEvidences);
         }
 
+        // ---- Sheet 18: Windowsライセンス ----
+        if (pcEvidences.Any(pc => pc.WindowsLicense is not null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteWindowsLicenseSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 19: Officeライセンス ----
+        if (pcEvidences.Any(pc => pc.OfficeLicense is not null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteOfficeLicenseSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 20+: 未知 section ID (manifest 経由・未対応) ----
+        if (pcEvidences.Any(pc => pc.UnknownSections.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteUnknownSectionSheets(workbook, pcEvidences);
+        }
+
         workbook.SaveAs(outputFilePath);
         return Task.CompletedTask;
     }
@@ -202,30 +240,107 @@ public sealed class ExcelExportService : IExcelExportService
     // Sheet 1: PC情報一覧
     // ================================================================
 
-    private static void WriteMainHeader(IXLWorksheet ws, int maxNicCount, List<string> driveLetters)
+    private static void WriteMainHeader(IXLWorksheet ws, int headerRow, int maxNicCount, List<string> driveLetters)
     {
         var col = 1;
 
         // 固定列
-        SetHeaderCell(ws, 1, col++, "PC名", BaseHeaderBg);
-        SetHeaderCell(ws, 1, col++, "シリアル番号", BaseHeaderBg);
-        SetHeaderCell(ws, 1, col++, "収集日", BaseHeaderBg);
-        SetHeaderCell(ws, 1, col++, "突合判定", BaseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "PC名", BaseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "シリアル番号", BaseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "収集日", BaseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "突合判定", BaseHeaderBg);
 
         // NIC列 (動的)
         for (var i = 1; i <= maxNicCount; i++)
         {
-            SetHeaderCell(ws, 1, col++, $"NIC{i}_アダプタ", NicHeaderBg);
-            SetHeaderCell(ws, 1, col++, $"NIC{i}_接続名", NicHeaderBg);
-            SetHeaderCell(ws, 1, col++, $"NIC{i}_MAC", NicHeaderBg);
+            SetHeaderCell(ws, headerRow, col++, $"NIC{i}_アダプタ", NicHeaderBg);
+            SetHeaderCell(ws, headerRow, col++, $"NIC{i}_接続名", NicHeaderBg);
+            SetHeaderCell(ws, headerRow, col++, $"NIC{i}_MAC", NicHeaderBg);
         }
 
         // BitLocker列 (動的: ドライブレター別)
         foreach (var drive in driveLetters)
         {
-            SetHeaderCell(ws, 1, col++, $"{drive}ドライブ_キーID", KeyHeaderBg);
-            SetHeaderCell(ws, 1, col++, $"{drive}ドライブ_回復キー", KeyHeaderBg);
+            SetHeaderCell(ws, headerRow, col++, $"{drive}ドライブ_キーID", KeyHeaderBg);
+            SetHeaderCell(ws, headerRow, col++, $"{drive}ドライブ_回復キー", KeyHeaderBg);
         }
+    }
+
+    /// <summary>
+    /// M6: Sheet 1 冒頭の案件メタデータブロック (6 行)。
+    /// 1: 案件名 / 2: 顧客 / 3: 作業者 / 4: 作業日 /
+    /// 5: kernelVersion + configVersion / 6: PC台数 + 突合 OK・NG 件数
+    /// </summary>
+    private static void WriteDeliveryMetadataBlock(
+        IXLWorksheet ws,
+        ExcelDeliveryMetadata metadata,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        ExcelExportOptions? options)
+    {
+        ws.Cell(1, 1).Value = "案件名";
+        ws.Cell(1, 2).Value = metadata.ProjectName;
+
+        ws.Cell(2, 1).Value = "顧客";
+        ws.Cell(2, 2).Value = metadata.CustomerName;
+
+        ws.Cell(3, 1).Value = "作業者";
+        ws.Cell(3, 2).Value = metadata.WorkerName;
+
+        ws.Cell(4, 1).Value = "作業日";
+        ws.Cell(4, 2).Value = metadata.WorkDate?.ToString("yyyy/MM/dd") ?? string.Empty;
+
+        // fabriq versions: 最初に manifest が読めた PC の値を採用
+        var firstManifest = pcEvidences.FirstOrDefault(pc => pc.Manifest is not null)?.Manifest;
+        ws.Cell(5, 1).Value = "fabriqKernelVersion";
+        ws.Cell(5, 2).Value = firstManifest?.FabriqKernelVersion ?? "(取得不能)";
+        ws.Cell(5, 3).Value = "evidenceConfigVersion";
+        ws.Cell(5, 4).Value = firstManifest?.EvidenceConfigVersion ?? "(取得不能)";
+
+        var (ok, ng) = ComputeVerificationCounts(pcEvidences, options);
+        ws.Cell(6, 1).Value = "対象 PC 台数";
+        ws.Cell(6, 2).Value = pcEvidences.Count;
+        ws.Cell(6, 3).Value = "突合 OK";
+        ws.Cell(6, 4).Value = ok;
+        ws.Cell(6, 5).Value = "突合 NG";
+        ws.Cell(6, 6).Value = ng;
+
+        // ラベル列を太字 + 薄背景
+        var labelBg = XLColor.FromHtml("#E0E0E0");
+        for (var r = 1; r <= 6; r++)
+        {
+            ws.Cell(r, 1).Style.Font.Bold = true;
+            ws.Cell(r, 1).Style.Fill.BackgroundColor = labelBg;
+        }
+        // 5/6 行の中段ラベル列も太字 + 薄背景
+        ws.Cell(5, 3).Style.Font.Bold = true;
+        ws.Cell(5, 3).Style.Fill.BackgroundColor = labelBg;
+        ws.Cell(6, 3).Style.Font.Bold = true;
+        ws.Cell(6, 3).Style.Fill.BackgroundColor = labelBg;
+        ws.Cell(6, 5).Style.Font.Bold = true;
+        ws.Cell(6, 5).Style.Fill.BackgroundColor = labelBg;
+
+        // NG > 0 の場合は強調
+        if (ng > 0)
+        {
+            ws.Cell(6, 4).Style.Font.FontColor = MismatchFont;
+            ws.Cell(6, 4).Style.Font.Bold = true;
+        }
+    }
+
+    private static (int Ok, int Ng) ComputeVerificationCounts(
+        IReadOnlyList<PcEvidence> pcEvidences,
+        ExcelExportOptions? options)
+    {
+        if (options?.VerificationReports is null) return (0, 0);
+        var ok = 0;
+        var ng = 0;
+        foreach (var pc in pcEvidences)
+        {
+            if (!options.VerificationReports.TryGetValue(pc.PcName, out var rep)) continue;
+            if (rep.MismatchCount > 0) ng++;
+            else if (rep.AllMatch) ok++;
+        }
+        return (ok, ng);
     }
 
     private static void WriteMainDataRow(
@@ -1017,6 +1132,275 @@ public sealed class ExcelExportService : IExcelExportService
     }
 
     // ================================================================
+    // Windowsライセンス (§21)
+    // ================================================================
+
+    private static void WriteWindowsLicenseSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("Windowsライセンス");
+        ws.TabColor = LicenseHeaderBg;
+
+        var headers = new[]
+        {
+            "PC名", "シリアル番号", "収集日",
+            "プロダクト名", "ライセンス状態", "プロダクトキー末尾",
+            "ライセンスファミリ", "プロダクトキーチャネル", "残り猶予期間(分)",
+            "KMS configured", "KMS discovered",
+            "ClientMachineID", "KMS Machine", "KMS Port",
+            "OA3 Original Key", "OA3 Key Description", "PolicyCacheRefreshRequired",
+        };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], LicenseHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            var lic = pc.WindowsLicense;
+            if (lic is null) continue;
+
+            var products = lic.Products;
+            if (products.Count == 0)
+            {
+                WriteWindowsLicenseRow(ws, row, pc, product: null, lic.Service);
+                row++;
+                continue;
+            }
+
+            foreach (var product in products)
+            {
+                WriteWindowsLicenseRow(ws, row, pc, product, lic.Service);
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    private static void WriteWindowsLicenseRow(
+        IXLWorksheet ws, int row, PcEvidence pc,
+        WindowsLicensingProduct? product, WindowsLicensingService? service)
+    {
+        ws.Cell(row, 1).Value = pc.PcName;
+        ws.Cell(row, 2).Value = pc.SerialNumber;
+        ws.Cell(row, 3).Value = pc.CollectionDate;
+
+        if (product is null)
+        {
+            ws.Cell(row, 4).Value = "(プロダクトキー未検出)";
+            ws.Cell(row, 5).Value = "未取得";
+        }
+        else
+        {
+            ws.Cell(row, 4).Value = product.Name;
+            ws.Cell(row, 5).Value = $"{product.LicenseStatusText} ({product.LicenseStatusCode})";
+            ws.Cell(row, 6).Value = product.PartialProductKey;
+            ws.Cell(row, 7).Value = product.LicenseFamily;
+            ws.Cell(row, 8).Value = product.ProductKeyChannel;
+            if (product.GracePeriodMinutes.HasValue)
+                ws.Cell(row, 9).Value = product.GracePeriodMinutes.Value;
+            ws.Cell(row, 10).Value = product.KmsConfigured ?? string.Empty;
+            ws.Cell(row, 11).Value = product.KmsDiscovered ?? string.Empty;
+        }
+
+        if (service is not null)
+        {
+            ws.Cell(row, 12).Value = service.ClientMachineID;
+            ws.Cell(row, 13).Value = service.KeyManagementServiceMachine;
+            ws.Cell(row, 14).Value = service.KeyManagementServicePort;
+            ws.Cell(row, 15).Value = service.OA3xOriginalProductKey;
+            ws.Cell(row, 16).Value = service.OA3xOriginalProductKeyDescription;
+            ws.Cell(row, 17).Value = service.PolicyCacheRefreshRequired;
+        }
+
+        // 監査着色: Licensed (1) 以外は赤背景 + 赤文字
+        var isAnomaly = product is null
+            || product.LicenseStatusCode != WindowsLicensingProduct.LicensedStatusCode;
+        if (isAnomaly)
+        {
+            var range = ws.Range(row, 1, row, 17);
+            range.Style.Fill.BackgroundColor = MismatchBg;
+            range.Style.Font.FontColor = MismatchFont;
+        }
+    }
+
+    // ================================================================
+    // Officeライセンス (§22)
+    // ================================================================
+
+    private static void WriteOfficeLicenseSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("Officeライセンス");
+        ws.TabColor = LicenseHeaderBg;
+
+        var headers = new[]
+        {
+            "PC名", "シリアル番号", "収集日",
+            "Office インストール状態",
+            "C2R ProductReleaseIds", "C2R バージョン", "C2R Platform",
+            "C2R UpdateChannel", "C2R AudienceData", "C2R ClientCulture",
+            "OSPP パス",
+            "LICENSE NAME", "LICENSE DESCRIPTION", "ライセンス状態",
+            "プロダクトキー末尾", "ERROR CODE", "REMAINING GRACE", "KMS Machine",
+        };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], LicenseHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            var lic = pc.OfficeLicense;
+            if (lic is null) continue;
+
+            if (!lic.IsOfficeInstalled)
+            {
+                WriteOfficeLicenseRow(ws, row, pc, lic, product: null);
+                row++;
+                continue;
+            }
+
+            if (lic.Products.Count == 0)
+            {
+                // C2R はあるが OSPP /dstatus なし or 製品ブロック未検出
+                WriteOfficeLicenseRow(ws, row, pc, lic, product: null);
+                row++;
+                continue;
+            }
+
+            foreach (var product in lic.Products)
+            {
+                WriteOfficeLicenseRow(ws, row, pc, lic, product);
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    private static void WriteOfficeLicenseRow(
+        IXLWorksheet ws, int row, PcEvidence pc,
+        OfficeLicenseData lic, OfficeProductLicense? product)
+    {
+        ws.Cell(row, 1).Value = pc.PcName;
+        ws.Cell(row, 2).Value = pc.SerialNumber;
+        ws.Cell(row, 3).Value = pc.CollectionDate;
+        ws.Cell(row, 4).Value = lic.IsOfficeInstalled ? "インストール済み" : "未インストール";
+
+        var c2r = lic.ClickToRun;
+        if (c2r is not null)
+        {
+            ws.Cell(row, 5).Value = c2r.ProductReleaseIds;
+            ws.Cell(row, 6).Value = c2r.VersionToReport;
+            ws.Cell(row, 7).Value = c2r.Platform;
+            ws.Cell(row, 8).Value = c2r.UpdateChannel;
+            ws.Cell(row, 9).Value = c2r.AudienceData;
+            ws.Cell(row, 10).Value = c2r.ClientCulture;
+        }
+
+        ws.Cell(row, 11).Value = lic.OsppPath ?? string.Empty;
+
+        if (product is not null)
+        {
+            ws.Cell(row, 12).Value = product.LicenseName;
+            ws.Cell(row, 13).Value = product.LicenseDescription;
+            ws.Cell(row, 14).Value = product.LicenseStatusText;
+            ws.Cell(row, 15).Value = product.LastFiveCharsProductKey;
+            ws.Cell(row, 16).Value = product.ErrorCode;
+            ws.Cell(row, 17).Value = product.RemainingGrace;
+            ws.Cell(row, 18).Value = product.KmsMachineName;
+        }
+
+        // 着色:
+        //   Office 未インストール        → グレー (情報行)
+        //   インストール済み + 非 Licensed → 赤 (要監査)
+        //   インストール済み + Licensed    → 通常背景
+        var range = ws.Range(row, 1, row, 18);
+        if (!lic.IsOfficeInstalled)
+        {
+            range.Style.Fill.BackgroundColor = InfoBg;
+        }
+        else if (product is null || !product.IsLicensed)
+        {
+            range.Style.Fill.BackgroundColor = MismatchBg;
+            range.Style.Font.FontColor = MismatchFont;
+        }
+    }
+
+    // ================================================================
+    // 未知 section ID (manifest 経由・未対応) — M5+M7
+    // ================================================================
+
+    /// <summary>
+    /// EvidenceConstants.KnownSections に無い manifest section ID を、
+    /// 1 ID = 1 シートで raw 表示する。
+    /// シート名は "§{Id} {Title}" (Excel 制限 31 文字に切り詰め)。
+    /// タブ色は黄色 (警告)、A1 セルに manager の AssemblyVersion を記録する。
+    /// </summary>
+    private static void WriteUnknownSectionSheets(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var groups = pcEvidences
+            .SelectMany(pc => pc.UnknownSections.Select(u => (Pc: pc, Section: u)))
+            .GroupBy(t => t.Section.Id, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.Ordinal);
+
+        foreach (var group in groups)
+        {
+            var first = group.First().Section;
+            var sheetName = SanitizeSheetName($"§{first.Id} {first.Title}");
+            var ws = workbook.Worksheets.Add(sheetName);
+            ws.TabColor = XLColor.Yellow;
+
+            // ヘッダブロック (manifest 経由の前方互換情報)
+            ws.Cell(1, 1).Value = $"fabriq_evidence_manager v{ManagerVersion} (manifest 経由・未対応セクション)";
+            ws.Cell(1, 1).Style.Font.Bold = true;
+            ws.Cell(1, 1).Style.Font.FontColor = XLColor.FromHtml("#7B1FA2");
+            ws.Cell(2, 1).Value = $"§{first.Id} {first.Title}";
+            ws.Cell(2, 1).Style.Font.Bold = true;
+
+            // データテーブルヘッダ (4 行目)
+            const int headerRow = 4;
+            SetHeaderCell(ws, headerRow, 1, "PC名", XLColor.FromHtml("#7B1FA2"));
+            SetHeaderCell(ws, headerRow, 2, "ファイル名", XLColor.FromHtml("#7B1FA2"));
+            SetHeaderCell(ws, headerRow, 3, "種別", XLColor.FromHtml("#7B1FA2"));
+            SetHeaderCell(ws, headerRow, 4, "raw 内容", XLColor.FromHtml("#7B1FA2"));
+
+            var row = headerRow + 1;
+            foreach (var (pc, section) in group)
+            {
+                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 2).Value = Path.GetFileName(section.FilePath);
+                ws.Cell(row, 3).Value = section.FileType.ToString();
+                ws.Cell(row, 4).Value = section.RawContent;
+                ws.Cell(row, 4).Style.Alignment.WrapText = true;
+                ws.Cell(row, 4).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+                row++;
+            }
+
+            // 列幅: PC名 / ファイル名 / 種別 は contents、raw 内容 は固定幅 80
+            ws.Column(1).AdjustToContents();
+            ws.Column(2).AdjustToContents();
+            ws.Column(3).AdjustToContents();
+            ws.Column(4).Width = 80;
+
+            // 罫線 + ヘッダ固定
+            if (row > headerRow + 1)
+            {
+                var dataRange = ws.Range(headerRow, 1, row - 1, 4);
+                dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+            }
+            ws.SheetView.FreezeRows(headerRow);
+        }
+    }
+
+    /// <summary>Excel シート名の禁則文字を除去し 31 文字に切り詰める。</summary>
+    private static string SanitizeSheetName(string name)
+    {
+        var invalid = new[] { '\\', '/', '*', '?', ':', '[', ']' };
+        var clean = string.Concat(name.Where(c => !invalid.Contains(c)));
+        return clean.Length > 31 ? clean[..31] : clean;
+    }
+
+    // ================================================================
     // 共通ヘルパー
     // ================================================================
 
@@ -1052,19 +1436,26 @@ public sealed class ExcelExportService : IExcelExportService
     }
 
     private static void ApplyStyles(IXLWorksheet ws, int dataRowCount, int totalColumns)
+        => ApplyStyles(ws, dataRowCount, totalColumns, headerRow: 1);
+
+    /// <summary>
+    /// 罫線・フォント・列幅・ヘッダ固定・オートフィルタを適用する。
+    /// headerRow 以前のメタデータブロックには影響しない。
+    /// </summary>
+    private static void ApplyStyles(IXLWorksheet ws, int dataRowCount, int totalColumns, int headerRow)
     {
         if (dataRowCount == 0 || totalColumns == 0)
             return;
 
-        var lastRow = dataRowCount + 1;
+        var lastRow = headerRow + dataRowCount;
 
-        // 全セルに罫線
-        var dataRange = ws.Range(1, 1, lastRow, totalColumns);
+        // ヘッダ + データ行に罫線
+        var dataRange = ws.Range(headerRow, 1, lastRow, totalColumns);
         dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
         // データ行のフォント
-        var bodyRange = ws.Range(2, 1, lastRow, totalColumns);
+        var bodyRange = ws.Range(headerRow + 1, 1, lastRow, totalColumns);
         bodyRange.Style.Font.FontName = "Arial";
         bodyRange.Style.Font.FontSize = 10;
 
@@ -1076,10 +1467,10 @@ public sealed class ExcelExportService : IExcelExportService
                 ws.Column(col).Width = EvidenceConstants.ExcelMaxColumnWidth;
         }
 
-        // ヘッダー行を固定
-        ws.SheetView.FreezeRows(1);
+        // ヘッダ行を固定 (メタデータブロックも一緒にスクロール固定する)
+        ws.SheetView.FreezeRows(headerRow);
 
-        // オートフィルタ
-        ws.Range(1, 1, lastRow, totalColumns).SetAutoFilter();
+        // オートフィルタはヘッダ + データ範囲のみ
+        ws.Range(headerRow, 1, lastRow, totalColumns).SetAutoFilter();
     }
 }

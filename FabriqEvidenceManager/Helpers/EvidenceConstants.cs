@@ -109,6 +109,12 @@ public static class EvidenceConstants
     /// <summary>Windows Update一覧CSV</summary>
     public const string FileWindowsUpdates = "19_WindowsUpdates.csv";
 
+    /// <summary>Windows ライセンス / アクティベーションログ (evidence_config v1.3.0+ §21)</summary>
+    public const string FileWindowsLicense = "21_WindowsLicense.txt";
+
+    /// <summary>Office ライセンス / アクティベーションログ (evidence_config v1.3.0+ §22)</summary>
+    public const string FileOfficeLicense = "22_OfficeLicense.txt";
+
     // ================================================================
     // 出力ファイル / ディレクトリ命名
     // ================================================================
@@ -121,6 +127,45 @@ public static class EvidenceConstants
 
     /// <summary>Excelシート名</summary>
     public const string ExcelSheetName = "PC情報一覧";
+
+    // ================================================================
+    // manifest section ID → 既知セクション (M4: manifest 起点 dispatch / M5: 未知判定)
+    // ================================================================
+
+    /// <summary>既知 manifest セクションのメタデータ。</summary>
+    public sealed record KnownSection(string DisplayName);
+
+    /// <summary>
+    /// evidence_config v1.3.0 が出力する 23 セクションの ID → 表示名マップ。
+    /// このディクショナリに無い ID は M5 で UnknownSection として raw 表示される。
+    /// </summary>
+    public static readonly System.Collections.Generic.IReadOnlyDictionary<string, KnownSection> KnownSections
+        = new System.Collections.Generic.Dictionary<string, KnownSection>(System.StringComparer.Ordinal)
+    {
+        ["01"] = new("System Basic Info"),
+        ["02"] = new("Local Users"),
+        ["03"] = new("Local Groups"),
+        ["04"] = new("Local Group Members"),
+        ["05"] = new("Domain & User Profiles"),
+        ["06"] = new("Network Settings"),
+        ["07"] = new("Printers"),
+        ["08"] = new("BitLocker Status"),
+        ["8b"] = new("Disk & Partition"),
+        ["09"] = new("MAC Addresses"),
+        ["10"] = new("PC Serial Number"),
+        ["11"] = new("Installed Software"),
+        ["12"] = new("Firewall"),
+        ["13"] = new("Optional Features"),
+        ["14"] = new("Server Roles & Features"),
+        ["15"] = new("Power Settings"),
+        ["16"] = new("WiFi Profiles"),
+        ["17"] = new("Restore Points"),
+        ["18"] = new("Windows Defender"),
+        ["19"] = new("Windows Update"),
+        ["20"] = new("System TEMP Backup"),
+        ["21"] = new("Windows License"),
+        ["22"] = new("Office License"),
+    };
 
     // ================================================================
     // Excel 書式

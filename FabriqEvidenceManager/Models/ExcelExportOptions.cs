@@ -19,4 +19,10 @@ public sealed class ExcelExportOptions
 
     /// <summary>PC名 → ベースライン突合レポート の辞書</summary>
     public IReadOnlyDictionary<string, BaselineComparisonReport>? BaselineReports { get; init; }
+
+    /// <summary>
+    /// Sheet 1 (PC情報一覧) 冒頭 6 行に出力する案件メタデータ (M6)。
+    /// null の場合は従来通りヘッダブロックなしで列ヘッダから開始する。
+    /// </summary>
+    public ExcelDeliveryMetadata? DeliveryMetadata { get; init; }
 }

@@ -36,115 +36,42 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     private static partial Regex BitLockerMountPointPattern();
 
     // ================================================================
+    // 専用 Service (DI 注入)
+    // ================================================================
+
+    private readonly IWindowsLicenseParserService _windowsLicenseParser;
+    private readonly IOfficeLicenseParserService _officeLicenseParser;
+
+    public EvidenceParserService(
+        IWindowsLicenseParserService windowsLicenseParser,
+        IOfficeLicenseParserService officeLicenseParser)
+    {
+        _windowsLicenseParser = windowsLicenseParser;
+        _officeLicenseParser = officeLicenseParser;
+    }
+
+    // ================================================================
     // PopulateDetails (ファイルI/Oオーケストレーション)
     // ================================================================
 
     /// <inheritdoc />
     public void PopulateDetails(PcEvidence pc)
     {
-        // pc_information 配下のログファイルをパース
-        if (pc.PcInformationDirectoryPath is not null)
+        // pc_information のパースは manifest 駆動 (kernel/EVIDENCE_MANIFEST.md schemaVersion=1)。
+        // manifest 不在時は ManifestError 経由で UI に表示済みなのでここではスキップする。
+        if (pc.PcInformationDirectoryPath is not null && pc.Manifest is not null)
         {
-            // シリアルナンバー — 失敗しても空値のまま続行
-            var serialFile = Path.Combine(pc.PcInformationDirectoryPath, EvidenceConstants.FileSerialNumber);
-            if (File.Exists(serialFile))
+            var dir = pc.PcInformationDirectoryPath;
+            foreach (var section in pc.Manifest.Sections)
             {
-                try
-                {
-                    pc.SerialNumber = ParseSerialNumber(serialFile);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // パース失敗: SerialNumber は初期値 (空文字列) のまま
-                    System.Diagnostics.Debug.WriteLine($"[Parse Skip] {serialFile}: {ex.Message}");
-                }
+                // Failed / Skipped はパース対象外 (Success / Partial のみ)
+                if (section.Status is SectionStatus.Failed or SectionStatus.Skipped)
+                    continue;
+                DispatchSection(pc, dir, section);
             }
-
-            // MACアドレス — 失敗しても空リストのまま続行
-            var macFile = Path.Combine(pc.PcInformationDirectoryPath, EvidenceConstants.FileMacAddress);
-            if (File.Exists(macFile))
-            {
-                try
-                {
-                    foreach (var entry in ParseMacAddresses(macFile))
-                        pc.MacAddresses.Add(entry);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[Parse Skip] {macFile}: {ex.Message}");
-                }
-            }
-
-            // ローカルユーザー
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileLocalUsers,
-                ParseLocalUsers, pc.LocalUsers);
-
-            // ローカルグループ
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileLocalGroups,
-                ParseLocalGroups, pc.LocalGroups);
-
-            // グループメンバー
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileLocalGroupMembers,
-                ParseLocalGroupMembers, pc.LocalGroupMembers);
-
-            // ドメイン参加状態
-            var domainFile = Path.Combine(pc.PcInformationDirectoryPath, EvidenceConstants.FileDomainStatus);
-            if (File.Exists(domainFile))
-            {
-                try
-                {
-                    pc.DomainStatus = ParseDomainStatus(domainFile);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                { System.Diagnostics.Debug.WriteLine($"[Parse Skip] {domainFile}: {ex.Message}"); }
-            }
-
-            // FWプロファイル
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileFirewallProfiles,
-                ParseFirewallProfiles, pc.FirewallProfiles);
-
-            // FWルール
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileFirewallRules,
-                ParseFirewallRules, pc.FirewallRules);
-
-            // オプション機能
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileOptionalFeatures,
-                ParseOptionalFeatures, pc.OptionalFeatures);
-
-            // ユーザープロファイル
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileUserProfiles,
-                ParseUserProfiles, pc.UserProfiles);
-
-            // ディスク
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileDisks,
-                ParseDisks, pc.Disks);
-
-            // パーティション
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FilePartitions,
-                ParsePartitions, pc.Partitions);
-
-            // 電源設定
-            TryParseNullable(pc.PcInformationDirectoryPath, EvidenceConstants.FilePowerSettings,
-                ParsePowerSettings, v => pc.PowerSettings = v);
-
-            // WiFiプロファイル
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileWiFiProfiles,
-                ParseWiFiProfiles, pc.WiFiProfiles);
-
-            // 復元ポイント
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileRestorePoints,
-                ParseRestorePoints, pc.RestorePoints);
-
-            // Defender状態
-            TryParseNullable(pc.PcInformationDirectoryPath, EvidenceConstants.FileDefenderStatus,
-                ParseDefenderStatus, v => pc.DefenderStatus = v);
-
-            // Windows Update
-            TryParseAndPopulate(pc.PcInformationDirectoryPath, EvidenceConstants.FileWindowsUpdates,
-                ParseWindowsUpdates, pc.WindowsUpdates);
         }
 
-        // BitLocker 回復キー — 個別ファイルごとにスキップ
+        // BitLocker 回復キー (manifest 外: bitlocker/ ディレクトリ)
         if (pc.BitLockerDirectoryPath is not null)
         {
             foreach (var bkFile in Directory.EnumerateFiles(pc.BitLockerDirectoryPath, "*.txt").OrderBy(f => f))
@@ -152,8 +79,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
                 try
                 {
                     var entry = ParseBitLockerKey(bkFile);
-                    if (entry is not null)
-                        pc.BitLockerKeys.Add(entry);
+                    if (entry is not null) pc.BitLockerKeys.Add(entry);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -162,8 +88,84 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             }
         }
 
-        // ---- エビデンス欠損検知 (初回は全項目チェック) ----
         ValidateEvidence(pc, null);
+    }
+
+    /// <summary>
+    /// manifest セクション ID に応じて該当パーサを呼び出す。
+    /// 既知 ID は EvidenceConstants.KnownSections と本 switch のケースが対応。
+    /// 未知 ID は本 switch のどの case にもマッチせず、M5 の raw 表示パイプラインで扱う。
+    /// </summary>
+    private void DispatchSection(PcEvidence pc, string dir, ManifestSection section)
+    {
+        switch (section.Id)
+        {
+            case "02": TryParseList(dir, section, "_LocalUsers.csv", ParseLocalUsers, pc.LocalUsers); break;
+            case "03": TryParseList(dir, section, "_LocalGroups.csv", ParseLocalGroups, pc.LocalGroups); break;
+            case "04": TryParseList(dir, section, "_LocalGroupMembers.csv", ParseLocalGroupMembers, pc.LocalGroupMembers); break;
+            case "05":
+                TryParseSingle(dir, section, "_DomainStatus.txt", ParseDomainStatus, v => pc.DomainStatus = v);
+                TryParseList(dir, section, "_UserProfiles.csv", ParseUserProfiles, pc.UserProfiles);
+                break;
+            case "8b":
+                TryParseList(dir, section, "_Disks.csv", ParseDisks, pc.Disks);
+                TryParseList(dir, section, "_Partitions.csv", ParsePartitions, pc.Partitions);
+                break;
+            case "09": TryParseList(dir, section, "_MacAddress.csv", ParseMacAddresses, pc.MacAddresses); break;
+            case "10": TryParseSingle(dir, section, "_SerialNumber.txt", ParseSerialNumber, v => pc.SerialNumber = v); break;
+            case "12":
+                TryParseList(dir, section, "_FirewallProfiles.csv", ParseFirewallProfiles, pc.FirewallProfiles);
+                TryParseList(dir, section, "_FirewallRules.csv", ParseFirewallRules, pc.FirewallRules);
+                break;
+            case "13": TryParseList(dir, section, "_OptionalFeatures.csv", ParseOptionalFeatures, pc.OptionalFeatures); break;
+            case "15": TryParseSingle(dir, section, "_PowerSettings.txt", ParsePowerSettings, v => pc.PowerSettings = v); break;
+            case "16": TryParseList(dir, section, "_WiFiProfiles.txt", ParseWiFiProfiles, pc.WiFiProfiles); break;
+            case "17": TryParseList(dir, section, "_RestorePoints.csv", ParseRestorePoints, pc.RestorePoints); break;
+            case "18": TryParseSingle(dir, section, "_DefenderStatus.txt", ParseDefenderStatus, v => pc.DefenderStatus = v); break;
+            case "19": TryParseList(dir, section, "_WindowsUpdates.csv", ParseWindowsUpdates, pc.WindowsUpdates); break;
+            case "21": TryParseSingle(dir, section, "_WindowsLicense.txt", _windowsLicenseParser.Parse, v => pc.WindowsLicense = v); break;
+            case "22": TryParseSingle(dir, section, "_OfficeLicense.txt", _officeLicenseParser.Parse, v => pc.OfficeLicense = v); break;
+            // 01/06/07/08/11/14/20: PopulateDetails で PcEvidence に直接格納する parse 対象なし
+            //   (HostlistService / BaselineService / EvidenceVerificationService が on-demand で読む)
+            default:
+                // KnownSections に無い未知 ID は raw として捕捉 (M5: 前方互換)
+                if (!EvidenceConstants.KnownSections.ContainsKey(section.Id))
+                    CaptureUnknownSection(pc, dir, section);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 未知 section の files[] 各々を読み込み、PcEvidence.UnknownSections に追加する。
+    /// EVIDENCE_MANIFEST.md §4.1.2 「未知 section は raw 表示」準拠。
+    /// </summary>
+    private static void CaptureUnknownSection(PcEvidence pc, string dir, ManifestSection section)
+    {
+        foreach (var file in section.RegularFiles)
+        {
+            var path = Path.Combine(dir, file);
+            if (!File.Exists(path)) continue;
+
+            var fileType = file.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+                ? UnknownSectionFileType.Csv
+                : UnknownSectionFileType.Text;
+
+            try
+            {
+                pc.UnknownSections.Add(new UnknownSection
+                {
+                    Id = section.Id,
+                    Title = section.Title,
+                    FilePath = path,
+                    FileType = fileType,
+                    RawContent = File.ReadAllText(path, Encoding.UTF8),
+                });
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Unknown Section Skip] {path}: {ex.Message}");
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -982,19 +984,21 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         => File.ReadAllText(filePath, Encoding.UTF8);
 
     /// <summary>
-    /// pc_information 配下のファイルをパースし、結果をコレクションに追加する汎用ヘルパー。
-    /// ファイルが存在しない場合やI/Oエラー時はスキップする。
+    /// manifest section の files[] から指定 suffix にマッチするファイルを 1 つ選び、
+    /// パース結果を destination に追加する汎用ヘルパー。
     /// </summary>
-    private void TryParseAndPopulate<T>(string pcInfoDir, string fileName,
-        Func<string, IReadOnlyList<T>> parser, List<T> target)
+    private static void TryParseList<T>(string dir, ManifestSection section, string fileSuffix,
+        Func<string, IReadOnlyList<T>> parser, List<T> destination)
     {
-        var filePath = Path.Combine(pcInfoDir, fileName);
+        var fileName = section.RegularFiles.FirstOrDefault(
+            f => f.EndsWith(fileSuffix, StringComparison.OrdinalIgnoreCase));
+        if (fileName is null) return;
+        var filePath = Path.Combine(dir, fileName);
         if (!File.Exists(filePath)) return;
 
         try
         {
-            foreach (var item in parser(filePath))
-                target.Add(item);
+            foreach (var item in parser(filePath)) destination.Add(item);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1003,12 +1007,16 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     }
 
     /// <summary>
-    /// pc_information 配下のファイルをパースし、nullable プロパティにセットする汎用ヘルパー。
+    /// manifest section の files[] から指定 suffix にマッチするファイルを 1 つ選び、
+    /// パース結果を setter で保存する汎用ヘルパー (nullable プロパティ用)。
     /// </summary>
-    private static void TryParseNullable<T>(string pcInfoDir, string fileName,
+    private static void TryParseSingle<T>(string dir, ManifestSection section, string fileSuffix,
         Func<string, T> parser, Action<T> setter) where T : class
     {
-        var filePath = Path.Combine(pcInfoDir, fileName);
+        var fileName = section.RegularFiles.FirstOrDefault(
+            f => f.EndsWith(fileSuffix, StringComparison.OrdinalIgnoreCase));
+        if (fileName is null) return;
+        var filePath = Path.Combine(dir, fileName);
         if (!File.Exists(filePath)) return;
 
         try

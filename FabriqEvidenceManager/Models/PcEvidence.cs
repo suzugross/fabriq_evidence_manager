@@ -75,6 +75,35 @@ public sealed partial class PcEvidence : ObservableObject
     /// <summary>Windows Update 一覧</summary>
     public List<WindowsUpdateEntry> WindowsUpdates { get; } = [];
 
+    /// <summary>
+    /// 未知 manifest section の raw データ。
+    /// EvidenceConstants.KnownSections に無い ID のセクションがここに集約される
+    /// (M5: 前方互換、§23 等の将来追加に対応)。
+    /// </summary>
+    public List<UnknownSection> UnknownSections { get; } = [];
+
+    /// <summary>Windows ライセンス / アクティベーション状態 (evidence_config v1.3.0+ §21)</summary>
+    [ObservableProperty]
+    private WindowsLicenseData? _windowsLicense;
+
+    /// <summary>Office ライセンス / アクティベーション状態 (evidence_config v1.3.0+ §22)</summary>
+    [ObservableProperty]
+    private OfficeLicenseData? _officeLicense;
+
+    /// <summary>
+    /// pc_information/manifest.json のパース結果 (kernel/EVIDENCE_MANIFEST.md schemaVersion=1)。
+    /// null の場合は <see cref="ManifestError"/> に理由が入る。
+    /// </summary>
+    [ObservableProperty]
+    private EvidenceManifest? _manifest;
+
+    /// <summary>
+    /// manifest.json 読み込み失敗時のエラーメッセージ。
+    /// null の場合は manifest が正常に読めた、または PC 情報ディレクトリ自体が無い。
+    /// </summary>
+    [ObservableProperty]
+    private string? _manifestError;
+
     // ---- evidence ソースパス群 (ファイル収集機能で使用) ----
 
     /// <summary>pc_information ディレクトリの絶対パス</summary>

@@ -23,6 +23,9 @@ public partial class App : Application
     {
         // Services
         services.AddSingleton<NestedEvidenceDiscoveryService>();
+        services.AddSingleton<IManifestReaderService, ManifestReaderService>();
+        services.AddSingleton<IWindowsLicenseParserService, WindowsLicenseParserService>();
+        services.AddSingleton<IOfficeLicenseParserService, OfficeLicenseParserService>();
         services.AddSingleton<IEvidenceParserService, EvidenceParserService>();
         services.AddSingleton<IHostlistService, HostlistService>();
         services.AddSingleton<IEvidenceVerificationService, EvidenceVerificationService>();
