@@ -844,10 +844,12 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     private ExcelExportOptions BuildExcelExportOptions(IReadOnlyList<PcEvidence> pcList)
     {
-        var verificationReports = new Dictionary<string, VerificationReport>(StringComparer.OrdinalIgnoreCase);
-        var checklistResults = new Dictionary<string, ChecklistResult>(StringComparer.OrdinalIgnoreCase);
-        var exportHistories = new Dictionary<string, IReadOnlyList<ExportHistoryEntry>>(StringComparer.OrdinalIgnoreCase);
-        var baselineReports = new Dictionary<string, BaselineComparisonReport>(StringComparer.OrdinalIgnoreCase);
+        // キーは PcEvidence インスタンス参照 (参照等価性)。
+        // 同じ計画 PC 名 (selectedNewPcName) を持つ複数 PC があっても衝突しない。
+        var verificationReports = new Dictionary<PcEvidence, VerificationReport>();
+        var checklistResults = new Dictionary<PcEvidence, ChecklistResult>();
+        var exportHistories = new Dictionary<PcEvidence, IReadOnlyList<ExportHistoryEntry>>();
+        var baselineReports = new Dictionary<PcEvidence, BaselineComparisonReport>();
 
         foreach (var pc in pcList)
         {
@@ -855,7 +857,7 @@ public partial class MainWindowViewModel : ObservableObject
             try
             {
                 var report = _verificationService.Verify(pc, CheckOptions);
-                verificationReports[pc.PcName] = report;
+                verificationReports[pc] = report;
             }
             catch (Exception ex)
             {
@@ -867,7 +869,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 try
                 {
-                    checklistResults[pc.PcName] = _checklistParserService.ParseChecklistHtml(pc.ChecklistFilePath);
+                    checklistResults[pc] = _checklistParserService.ParseChecklistHtml(pc.ChecklistFilePath);
                 }
                 catch (Exception ex)
                 {
@@ -881,7 +883,7 @@ public partial class MainWindowViewModel : ObservableObject
                 try
                 {
                     var history = _checklistParserService.ParseExportHistory(pc.ExportHistoryFilePath);
-                    exportHistories[pc.PcName] = history;
+                    exportHistories[pc] = history;
                 }
                 catch (Exception ex)
                 {
@@ -894,7 +896,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 try
                 {
-                    baselineReports[pc.PcName] = _baselineService.CompareAll(pc);
+                    baselineReports[pc] = _baselineService.CompareAll(pc);
                 }
                 catch (Exception ex)
                 {

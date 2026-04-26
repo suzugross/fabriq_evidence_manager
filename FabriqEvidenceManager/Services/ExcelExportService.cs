@@ -181,25 +181,50 @@ public sealed class ExcelExportService : IExcelExportService
         using var workbook = new XLWorkbook();
         var single = new[] { pc };
 
-        if (options?.VerificationReports?.ContainsKey(pc.PcName) == true)
+        if (options?.VerificationReports?.ContainsKey(pc) == true)
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteVerificationSheet(workbook, single, options.VerificationReports);
         }
-        if (options?.ChecklistResults?.ContainsKey(pc.PcName) == true)
+        if (options?.ChecklistResults?.ContainsKey(pc) == true)
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteChecklistSheet(workbook, single, options.ChecklistResults);
         }
-        if (options?.ExportHistories?.ContainsKey(pc.PcName) == true)
+        if (options?.ExportHistories?.ContainsKey(pc) == true)
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteHistorySheet(workbook, single, options.ExportHistories);
         }
-        if (options?.BaselineReports?.ContainsKey(pc.PcName) == true)
+        if (options?.BaselineReports?.TryGetValue(pc, out var br) == true)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteBaselineSheet(workbook, single, options.BaselineReports);
+            // 5 カテゴリ × 該当データ有り = それぞれ独立シートで出力
+            // (Phase 1.5: ベースライン全カテゴリ Excel 出力)
+            if (br.Items.Count > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBaselineExecutionSheet(workbook, single, options.BaselineReports);
+            }
+            if (br.SystemInfoComparison is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBaselineSystemInfoSheet(workbook, single, options.BaselineReports);
+            }
+            if (br.ChecklistComparison is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBaselineChecklistSheet(workbook, single, options.BaselineReports);
+            }
+            if (br.InstalledAppsComparison is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBaselineAppsSheet(workbook, single, options.BaselineReports);
+            }
+            if (br.LicenseComparison is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBaselineLicenseSheet(workbook, single, options.BaselineReports);
+            }
         }
         if (pc.LocalUsers.Count > 0 || pc.LocalGroups.Count > 0)
         {
@@ -289,10 +314,10 @@ public sealed class ExcelExportService : IExcelExportService
     /// <summary>この PC が詳細ファイル生成対象のデータ (N 行/PC になるシート群) を持つか。</summary>
     private static bool HasAnyDetailData(PcEvidence pc, ExcelExportOptions? options)
     {
-        return options?.VerificationReports?.ContainsKey(pc.PcName) == true
-            || options?.ChecklistResults?.ContainsKey(pc.PcName) == true
-            || options?.ExportHistories?.ContainsKey(pc.PcName) == true
-            || options?.BaselineReports?.ContainsKey(pc.PcName) == true
+        return options?.VerificationReports?.ContainsKey(pc) == true
+            || options?.ChecklistResults?.ContainsKey(pc) == true
+            || options?.ExportHistories?.ContainsKey(pc) == true
+            || options?.BaselineReports?.ContainsKey(pc) == true
             || pc.LocalUsers.Count > 0 || pc.LocalGroups.Count > 0
             || pc.FirewallProfiles.Count > 0
             || pc.FirewallRules.Count > 0
@@ -407,7 +432,7 @@ public sealed class ExcelExportService : IExcelExportService
         var ng = 0;
         foreach (var pc in pcEvidences)
         {
-            if (!options.VerificationReports.TryGetValue(pc.PcName, out var rep)) continue;
+            if (!options.VerificationReports.TryGetValue(pc, out var rep)) continue;
             if (rep.MismatchCount > 0) ng++;
             else if (rep.AllMatch) ok++;
         }
@@ -465,7 +490,7 @@ public sealed class ExcelExportService : IExcelExportService
         // 突合判定列
         var verifyCell = ws.Cell(row, col++);
         if (options?.VerificationReports is not null
-            && options.VerificationReports.TryGetValue(pc.PcName, out var report))
+            && options.VerificationReports.TryGetValue(pc, out var report))
         {
             if (!report.HostlistFound)
             {
@@ -533,7 +558,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static void WriteVerificationSheet(
         IXLWorkbook workbook,
         IReadOnlyList<PcEvidence> pcEvidences,
-        IReadOnlyDictionary<string, VerificationReport> reports)
+        IReadOnlyDictionary<PcEvidence, VerificationReport> reports)
     {
         var ws = workbook.Worksheets.Add("突合詳細");
 
@@ -547,7 +572,7 @@ public sealed class ExcelExportService : IExcelExportService
         var row = 2;
         foreach (var pc in pcEvidences)
         {
-            if (!reports.TryGetValue(pc.PcName, out var report)) continue;
+            if (!reports.TryGetValue(pc, out var report)) continue;
             if (!report.HostlistFound) continue;
 
             foreach (var item in report.Items)
@@ -599,7 +624,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static void WriteChecklistSheet(
         IXLWorkbook workbook,
         IReadOnlyList<PcEvidence> pcEvidences,
-        IReadOnlyDictionary<string, ChecklistResult> results)
+        IReadOnlyDictionary<PcEvidence, ChecklistResult> results)
     {
         var ws = workbook.Worksheets.Add("チェックリスト");
 
@@ -617,7 +642,7 @@ public sealed class ExcelExportService : IExcelExportService
         var row = 2;
         foreach (var pc in pcEvidences)
         {
-            if (!results.TryGetValue(pc.PcName, out var result)) continue;
+            if (!results.TryGetValue(pc, out var result)) continue;
 
             if (result.ModuleItems.Count == 0)
             {
@@ -658,7 +683,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static void WriteHistorySheet(
         IXLWorkbook workbook,
         IReadOnlyList<PcEvidence> pcEvidences,
-        IReadOnlyDictionary<string, IReadOnlyList<ExportHistoryEntry>> histories)
+        IReadOnlyDictionary<PcEvidence, IReadOnlyList<ExportHistoryEntry>> histories)
     {
         var ws = workbook.Worksheets.Add("実行履歴");
 
@@ -675,7 +700,7 @@ public sealed class ExcelExportService : IExcelExportService
         var row = 2;
         foreach (var pc in pcEvidences)
         {
-            if (!histories.TryGetValue(pc.PcName, out var entries)) continue;
+            if (!histories.TryGetValue(pc, out var entries)) continue;
 
             foreach (var entry in entries)
             {
@@ -702,14 +727,14 @@ public sealed class ExcelExportService : IExcelExportService
 
     private static readonly XLColor BaselineHeaderBg = XLColor.FromHtml("#5B5EA6"); // 青紫: ベースライン
 
-    private static void WriteBaselineSheet(
+    /// <summary>ベースライン突合 — 実行サマリ (旧「ベースライン突合」シートを命名統一)</summary>
+    private static void WriteBaselineExecutionSheet(
         IXLWorkbook workbook,
         IReadOnlyList<PcEvidence> pcEvidences,
-        IReadOnlyDictionary<string, BaselineComparisonReport> reports)
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
     {
-        var ws = workbook.Worksheets.Add("ベースライン突合");
+        var ws = workbook.Worksheets.Add("ベースライン_実行サマリ");
 
-        // ヘッダー
         SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
         SetHeaderCell(ws, 1, 2, "モジュール名", BaselineHeaderBg);
         SetHeaderCell(ws, 1, 3, "カテゴリ", BaselineHeaderBg);
@@ -720,7 +745,7 @@ public sealed class ExcelExportService : IExcelExportService
         var row = 2;
         foreach (var pc in pcEvidences)
         {
-            if (!reports.TryGetValue(pc.PcName, out var report)) continue;
+            if (!reports.TryGetValue(pc, out var report)) continue;
 
             foreach (var item in report.Items)
             {
@@ -761,6 +786,229 @@ public sealed class ExcelExportService : IExcelExportService
         }
 
         ApplyStyles(ws, row - 2, 6);
+    }
+
+    /// <summary>ベースライン突合 — SystemInfo (OS名 / OSバージョン / CPU / メモリ 4 項目)</summary>
+    private static void WriteBaselineSystemInfoSheet(
+        IXLWorkbook workbook,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
+    {
+        var ws = workbook.Worksheets.Add("ベースライン_SystemInfo");
+
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 2, "項目", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 3, "期待値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 4, "実測値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 5, "判定", BaselineHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (!reports.TryGetValue(pc, out var report)) continue;
+            if (report.SystemInfoComparison is null) continue;
+
+            foreach (var item in report.SystemInfoComparison.Items)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = item.ItemName;
+                ws.Cell(row, 3).Value = item.Expected;
+                ws.Cell(row, 4).Value = item.Actual;
+                ApplyVerificationStatusToCell(ws.Cell(row, 5), item.Status, ws.Range(row, 1, row, 5));
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 5);
+    }
+
+    /// <summary>ベースライン突合 — チェックリスト (OverallStatus + verify-table 各項目)</summary>
+    private static void WriteBaselineChecklistSheet(
+        IXLWorkbook workbook,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
+    {
+        var ws = workbook.Worksheets.Add("ベースライン_チェックリスト");
+
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 2, "種別", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 3, "項目", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 4, "期待値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 5, "実測値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 6, "判定", BaselineHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (!reports.TryGetValue(pc, out var report)) continue;
+            if (report.ChecklistComparison is null) continue;
+            var cl = report.ChecklistComparison;
+
+            // OverallStatus 行 (1 行)
+            ws.Cell(row, 1).Value = pc.PcNameDisplay;
+            ws.Cell(row, 2).Value = "全体判定";
+            ws.Cell(row, 3).Value = "OverallStatus";
+            ws.Cell(row, 4).Value = cl.BaselineOverallStatus;
+            ws.Cell(row, 5).Value = cl.ActualOverallStatus;
+
+            var overallCell = ws.Cell(row, 6);
+            if (cl.OverallStatusMatch)
+            {
+                overallCell.Value = "OK";
+                overallCell.Style.Font.FontColor = MatchFont;
+                overallCell.Style.Fill.BackgroundColor = MatchBg;
+            }
+            else
+            {
+                overallCell.Value = "NG";
+                overallCell.Style.Font.FontColor = MismatchFont;
+                overallCell.Style.Font.Bold = true;
+                overallCell.Style.Fill.BackgroundColor = MismatchBg;
+                ws.Range(row, 1, row, 6).Style.Fill.BackgroundColor = MismatchBg;
+            }
+            row++;
+
+            // VerifyItems 行 (N 行)
+            foreach (var item in cl.VerifyItemComparisons)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = "検証項目";
+                ws.Cell(row, 3).Value = item.ItemName;
+                ws.Cell(row, 4).Value = item.Expected;
+                ws.Cell(row, 5).Value = item.Actual;
+                ApplyVerificationStatusToCell(ws.Cell(row, 6), item.Status, ws.Range(row, 1, row, 6));
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 6);
+    }
+
+    /// <summary>ベースライン突合 — インストール済みアプリ (PC ごと集計行 + 差分行)</summary>
+    private static void WriteBaselineAppsSheet(
+        IXLWorkbook workbook,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
+    {
+        var ws = workbook.Worksheets.Add("ベースライン_アプリ");
+
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 2, "アプリ名", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 3, "期待バージョン", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 4, "実測バージョン", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 5, "判定", BaselineHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (!reports.TryGetValue(pc, out var report)) continue;
+            if (report.InstalledAppsComparison is null) continue;
+            var apps = report.InstalledAppsComparison;
+
+            // 集計行 (1 PC = 1 行)
+            ws.Cell(row, 1).Value = pc.PcNameDisplay;
+            ws.Cell(row, 2).Value = "(集計)";
+            ws.Cell(row, 3).Value = $"ベースライン {apps.TotalBaselineCount}件";
+            ws.Cell(row, 4).Value = $"対象 {apps.TotalActualCount}件";
+            var summaryCell = ws.Cell(row, 5);
+            summaryCell.Value = $"一致 {apps.MatchCount}件 / 差分 {apps.MismatchCount}件";
+            if (apps.MismatchCount == 0)
+            {
+                summaryCell.Style.Font.FontColor = MatchFont;
+                summaryCell.Style.Font.Bold = true;
+            }
+            else
+            {
+                summaryCell.Style.Font.FontColor = MismatchFont;
+                summaryCell.Style.Font.Bold = true;
+            }
+            row++;
+
+            // 差分行 (Match 以外のみ)
+            foreach (var item in apps.Items)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = item.ItemName;
+                ws.Cell(row, 3).Value = item.Expected;
+                ws.Cell(row, 4).Value = item.Actual;
+                ApplyVerificationStatusToCell(ws.Cell(row, 5), item.Status, ws.Range(row, 1, row, 5));
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 5);
+    }
+
+    /// <summary>ベースライン突合 — Win/Office ライセンス (8 項目固定)</summary>
+    private static void WriteBaselineLicenseSheet(
+        IXLWorkbook workbook,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
+    {
+        var ws = workbook.Worksheets.Add("ベースライン_ライセンス");
+
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 2, "項目", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 3, "期待値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 4, "実測値", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 5, "判定", BaselineHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (!reports.TryGetValue(pc, out var report)) continue;
+            if (report.LicenseComparison is null) continue;
+
+            foreach (var item in report.LicenseComparison.Items)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = item.ItemName;
+                ws.Cell(row, 3).Value = item.Expected;
+                ws.Cell(row, 4).Value = item.Actual;
+                ApplyVerificationStatusToCell(ws.Cell(row, 5), item.Status, ws.Range(row, 1, row, 5));
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, 5);
+    }
+
+    /// <summary>
+    /// VerificationStatus を Excel セルに反映する共通ヘルパ
+    /// (SystemInfo / Checklist VerifyItems / InstalledApps / License で共用)。
+    /// </summary>
+    private static void ApplyVerificationStatusToCell(
+        IXLCell statusCell,
+        VerificationStatus status,
+        IXLRange? rowRangeForMismatch)
+    {
+        switch (status)
+        {
+            case VerificationStatus.Match:
+                statusCell.Value = "OK";
+                statusCell.Style.Font.FontColor = MatchFont;
+                statusCell.Style.Fill.BackgroundColor = MatchBg;
+                break;
+            case VerificationStatus.Mismatch:
+                statusCell.Value = "NG";
+                statusCell.Style.Font.FontColor = MismatchFont;
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = MismatchBg;
+                rowRangeForMismatch?.Style.Fill.SetBackgroundColor(MismatchBg);
+                break;
+            case VerificationStatus.NoExpected:
+                // ベースラインなし、対象 PC のみに値あり = 「追加された」
+                statusCell.Value = "NEW";
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#1565C0");
+                break;
+            case VerificationStatus.NoActual:
+                // ベースラインあり、対象 PC に値なし = 「欠損」
+                statusCell.Value = "---";
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#E65100");
+                statusCell.Style.Font.Bold = true;
+                rowRangeForMismatch?.Style.Fill.SetBackgroundColor(MismatchBg);
+                break;
+        }
     }
 
     // ================================================================

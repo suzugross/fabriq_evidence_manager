@@ -8,17 +8,21 @@ namespace FabriqEvidenceManager.Models;
 /// </summary>
 public sealed class ExcelExportOptions
 {
-    /// <summary>PC名 → 突合レポート の辞書</summary>
-    public IReadOnlyDictionary<string, VerificationReport>? VerificationReports { get; init; }
+    // 注意: キーは文字列 PcName ではなく PcEvidence インスタンス参照。
+    // 同じ計画 PC 名 (selectedNewPcName) を持つ複数 PC が衝突して
+    // レポートが上書きされるバグ (v3.4.0 まで) を修正するため、参照ベースのキーに変更。
 
-    /// <summary>PC名 → チェックリスト結果 の辞書</summary>
-    public IReadOnlyDictionary<string, ChecklistResult>? ChecklistResults { get; init; }
+    /// <summary>PcEvidence → 突合レポート の辞書 (キーは参照同一性)</summary>
+    public IReadOnlyDictionary<PcEvidence, VerificationReport>? VerificationReports { get; init; }
 
-    /// <summary>PC名 → 実行履歴一覧 の辞書</summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<ExportHistoryEntry>>? ExportHistories { get; init; }
+    /// <summary>PcEvidence → チェックリスト結果 の辞書 (キーは参照同一性)</summary>
+    public IReadOnlyDictionary<PcEvidence, ChecklistResult>? ChecklistResults { get; init; }
 
-    /// <summary>PC名 → ベースライン突合レポート の辞書</summary>
-    public IReadOnlyDictionary<string, BaselineComparisonReport>? BaselineReports { get; init; }
+    /// <summary>PcEvidence → 実行履歴一覧 の辞書 (キーは参照同一性)</summary>
+    public IReadOnlyDictionary<PcEvidence, IReadOnlyList<ExportHistoryEntry>>? ExportHistories { get; init; }
+
+    /// <summary>PcEvidence → ベースライン突合レポート の辞書 (キーは参照同一性)</summary>
+    public IReadOnlyDictionary<PcEvidence, BaselineComparisonReport>? BaselineReports { get; init; }
 
     /// <summary>
     /// Sheet 1 (PC情報一覧) 冒頭 6 行に出力する案件メタデータ (M6)。
