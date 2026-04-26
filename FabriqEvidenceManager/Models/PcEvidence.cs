@@ -243,14 +243,8 @@ public sealed partial class PcEvidence : ObservableObject
             || m.ConnectionName.Contains("ワイヤレス", StringComparison.OrdinalIgnoreCase))
         ?.PhysicalAddress ?? string.Empty;
 
-    /// <summary>BitLocker回復キーの有無</summary>
+    /// <summary>BitLocker回復キーの有無 (有効な回復パスワードが取得できたエントリ数 &gt; 0)</summary>
     public bool HasBitLocker => BitLockerKeys.Count > 0;
-
-    /// <summary>BitLocker概要 (例: "C, D")</summary>
-    public string BitLockerDrives =>
-        BitLockerKeys.Count > 0
-            ? string.Join(", ", BitLockerKeys.Select(k => k.DriveLetter + ":"))
-            : string.Empty;
 
     /// <summary>エビデンス検出状況 (pc_info / capture / checklist / history)</summary>
     public string DetectedItems =>
@@ -272,6 +266,6 @@ public sealed partial class PcEvidence : ObservableObject
         OnPropertyChanged(nameof(EthernetMac));
         OnPropertyChanged(nameof(WifiMac));
         OnPropertyChanged(nameof(HasBitLocker));
-        OnPropertyChanged(nameof(BitLockerDrives));
+        OnPropertyChanged(nameof(BitLockerKeys));
     }
 }

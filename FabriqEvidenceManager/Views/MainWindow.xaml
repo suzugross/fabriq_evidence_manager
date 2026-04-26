@@ -490,11 +490,26 @@
                                             MinWidth="140"
                                             Width="SizeToCells"/>
 
-                        <!-- BitLocker ドライブ -->
-                        <DataGridTextColumn Header="BitLocker"
-                                            Binding="{Binding BitLockerDrives}"
-                                            MinWidth="70"
-                                            Width="SizeToCells"/>
+                        <!-- BitLocker (ドライブレター + 回復キー併記、ItemsControl で行毎レイアウト) -->
+                        <DataGridTemplateColumn Header="BitLocker (回復キー)"
+                                                MinWidth="280"
+                                                Width="SizeToCells">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ItemsControl ItemsSource="{Binding BitLockerKeys}" Margin="4,2">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock FontFamily="Consolas" FontSize="11">
+                                                    <Run Text="{Binding DriveLetter, Mode=OneWay}" FontWeight="Bold"/>
+                                                    <Run Text=": "/>
+                                                    <Run Text="{Binding RecoveryPassword, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
 
                         <!-- 検出状況 -->
                         <DataGridTextColumn Header="検出エビデンス"
@@ -668,14 +683,28 @@
                                 <TextBlock Grid.Column="1" Text="{Binding SelectedPc.WifiMac}" FontSize="11" FontFamily="Consolas"/>
                             </Grid>
 
-                            <!-- BitLocker -->
+                            <!-- BitLocker (ドライブごとに ID + 回復キーを展開表示) -->
                             <Grid Margin="0,0,0,3">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="100"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="BitLocker:" FontSize="11" Foreground="#666666"/>
-                                <TextBlock Grid.Column="1" Text="{Binding SelectedPc.BitLockerDrives}" FontSize="11"/>
+                                <ItemsControl Grid.Column="1" ItemsSource="{Binding SelectedPc.BitLockerKeys}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,0,0,4">
+                                                <TextBlock FontFamily="Consolas" FontSize="11">
+                                                    <Run Text="{Binding DriveLetter, Mode=OneWay}" FontWeight="Bold"/>
+                                                    <Run Text=": "/>
+                                                    <Run Text="{Binding RecoveryPassword, Mode=OneWay}"/>
+                                                </TextBlock>
+                                                <TextBlock FontSize="10" Foreground="#888888" Margin="14,0,0,0"
+                                                           Text="{Binding KeyId, StringFormat='ID: {0}', Mode=OneWay}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </Grid>
 
                             <!-- チェックリスト -->
