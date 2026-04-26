@@ -52,14 +52,17 @@ public sealed class BaselineComparisonReport
     /// <summary>実行サマリ突合結果の項目一覧 (ModuleName × Status)</summary>
     public List<BaselineComparisonItem> Items { get; init; } = [];
 
-    /// <summary>システム基本情報の照合結果 (OS名・バージョン・CPU・メモリ)</summary>
-    public SystemInfoComparisonResult? SystemInfoComparison { get; init; }
+    /// <summary>
+    /// システム基本情報の照合結果 (OS名・バージョン・CPU・メモリ)。
+    /// init ではなく set: BaselineService 内のコンパレータ経由で書き込まれる (内部利用前提)。
+    /// </summary>
+    public SystemInfoComparisonResult? SystemInfoComparison { get; set; }
 
     /// <summary>チェックリストの照合結果 (OverallStatus + VerifyItems)</summary>
-    public ChecklistComparisonResult? ChecklistComparison { get; init; }
+    public ChecklistComparisonResult? ChecklistComparison { get; set; }
 
     /// <summary>インストール済みアプリの照合結果</summary>
-    public InstalledAppsComparisonResult? InstalledAppsComparison { get; init; }
+    public InstalledAppsComparisonResult? InstalledAppsComparison { get; set; }
 
     /// <summary>実行サマリが全項目 Match かどうか</summary>
     public bool AllMatch => Items.Count > 0 && Items.All(i => i.MatchStatus == BaselineMatchStatus.Match);

@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using FabriqEvidenceManager.Services;
+using FabriqEvidenceManager.Services.Baseline;
 using FabriqEvidenceManager.Services.Interfaces;
 using FabriqEvidenceManager.ViewModels;
 using FabriqEvidenceManager.Views;
@@ -30,6 +31,12 @@ public partial class App : Application
         services.AddSingleton<IHostlistService, HostlistService>();
         services.AddSingleton<IEvidenceVerificationService, EvidenceVerificationService>();
         services.AddSingleton<IChecklistParserService, ChecklistParserService>();
+        // Baseline plugin comparators (Phase 1 リファクタ)。
+        // 新カテゴリを追加する場合は IBaselineComparator 実装を作成し本ブロックに 1 行追加するのみ。
+        services.AddSingleton<IBaselineComparator, ExecutionSummaryComparator>();
+        services.AddSingleton<IBaselineComparator, SystemInfoComparator>();
+        services.AddSingleton<IBaselineComparator, ChecklistComparator>();
+        services.AddSingleton<IBaselineComparator, InstalledAppsComparator>();
         services.AddSingleton<IBaselineService, BaselineService>();
         services.AddTransient<IEvidenceCollectorService, EvidenceCollectorService>();
         services.AddTransient<IExcelExportService, ExcelExportService>();
