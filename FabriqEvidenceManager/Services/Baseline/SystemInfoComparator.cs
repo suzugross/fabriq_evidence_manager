@@ -75,7 +75,8 @@ public sealed class SystemInfoComparator : IBaselineComparator
 
         VerificationStatus status;
         if (string.IsNullOrEmpty(expTrimmed) && string.IsNullOrEmpty(actTrimmed))
-            status = VerificationStatus.NoExpected;
+            // 両方ともデータ不在 = 「揃っている」= Match (false-positive 防止)
+            status = VerificationStatus.Match;
         else if (string.IsNullOrEmpty(expTrimmed))
             status = VerificationStatus.NoExpected;
         else if (string.IsNullOrEmpty(actTrimmed))

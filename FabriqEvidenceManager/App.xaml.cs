@@ -37,6 +37,7 @@ public partial class App : Application
         services.AddSingleton<IBaselineComparator, SystemInfoComparator>();
         services.AddSingleton<IBaselineComparator, ChecklistComparator>();
         services.AddSingleton<IBaselineComparator, InstalledAppsComparator>();
+        services.AddSingleton<IBaselineComparator, LicenseComparator>();
         services.AddSingleton<IBaselineService, BaselineService>();
         services.AddTransient<IEvidenceCollectorService, EvidenceCollectorService>();
         services.AddTransient<IExcelExportService, ExcelExportService>();
