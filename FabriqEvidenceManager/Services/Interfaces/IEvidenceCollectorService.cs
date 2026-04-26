@@ -14,8 +14,8 @@ namespace FabriqEvidenceManager.Services.Interfaces;
 public interface IEvidenceCollectorService
 {
     /// <summary>
-    /// 親ディレクトリの下に "{YYYY_MM_DD}_fabriq_evi" 形式の納品用ディレクトリを作成し、
-    /// そのパスを返す。
+    /// 親ディレクトリの下に "{YYYY_MM_DD_HHmmss}_fabriq_evi" 形式の納品用ディレクトリを作成し、
+    /// そのパスを返す。同日複数回出力時の衝突回避のため秒精度のタイムスタンプを含む。
     /// </summary>
     /// <param name="parentDirectoryPath">ユーザーが選択した出力先親ディレクトリ</param>
     /// <returns>作成された納品用ディレクトリの絶対パス</returns>

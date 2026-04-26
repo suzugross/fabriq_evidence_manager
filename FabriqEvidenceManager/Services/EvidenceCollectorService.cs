@@ -30,7 +30,7 @@ public sealed class EvidenceCollectorService : IEvidenceCollectorService
     /// <inheritdoc />
     public string CreateDeliveryDirectory(string parentDirectoryPath)
     {
-        var deliveryDirName = $"{DateTime.Now:yyyy_MM_dd}_{EvidenceConstants.DeliveryDirSuffix}";
+        var deliveryDirName = $"{DateTime.Now:yyyy_MM_dd_HHmmss}_{EvidenceConstants.DeliveryDirSuffix}";
         var deliveryPath = Path.Combine(parentDirectoryPath, deliveryDirName);
         Directory.CreateDirectory(deliveryPath);
         return deliveryPath;

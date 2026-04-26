@@ -521,7 +521,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>
     /// 納品データ一括出力。
-    /// 出力先フォルダを選択し、{YYYY_MM_DD}_fabriq_evi フォルダを作成して
+    /// 出力先フォルダを選択し、{YYYY_MM_DD_HHmmss}_fabriq_evi フォルダを作成して
     /// 各PCのエビデンスディレクトリとPC情報一覧表Excelを出力する。
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanExecuteAction))]
