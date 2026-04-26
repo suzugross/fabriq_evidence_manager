@@ -106,6 +106,10 @@ public partial class MainWindowViewModel : ObservableObject
         if (pc.HasPcNameMismatch)
             cautions.Add($"PC名不一致(計画={pc.PcName} / 実={pc.ActualComputerName})");
 
+        // SN フォールバック取得 (BIOS シリアル系以外から採用 = OEM SMBIOS 不整合の可能性)
+        if (pc.HasSerialFallbackWarning)
+            cautions.Add($"SNフォールバック(source={SerialSourceEntry.ShortLabel(pc.SerialNumberSource)})");
+
         // hostlist 突合
         if (_hostlistService.IsLoaded)
         {

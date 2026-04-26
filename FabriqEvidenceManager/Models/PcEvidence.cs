@@ -55,7 +55,46 @@ public sealed partial class PcEvidence : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EthernetMac))]
     [NotifyPropertyChangedFor(nameof(WifiMac))]
+    [NotifyPropertyChangedFor(nameof(HasSerialFallbackWarning))]
+    [NotifyPropertyChangedFor(nameof(SerialNumberDisplay))]
     private string _serialNumber = string.Empty;
+
+    /// <summary>
+    /// SN を採用したソースラベル (例: "Win32_BIOS.SerialNumber")。
+    /// Primary = Win32_BIOS.SerialNumber のみ。それ以外はフォールバックとして警告対象。
+    /// 取得不能 / manifest なし時は null。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSerialFromPrimarySource))]
+    [NotifyPropertyChangedFor(nameof(HasSerialFallbackWarning))]
+    [NotifyPropertyChangedFor(nameof(SerialNumberDisplay))]
+    private string? _serialNumberSource;
+
+    /// <summary>Win32_ComputerSystemProduct.UUID (audit reference, SN ではない)</summary>
+    [ObservableProperty]
+    private string _serialReferenceUuid = string.Empty;
+
+    /// <summary>SN 取得試行の全ソース履歴 (詳細パネル用)</summary>
+    public List<SerialSourceEntry> SerialSourceTrail { get; } = [];
+
+    /// <summary>採用ソースが Primary canonical (Win32_BIOS.SerialNumber) かどうか</summary>
+    public bool IsSerialFromPrimarySource =>
+        SerialNumberSource == SerialSourceEntry.PrimaryCanonicalLabel;
+
+    /// <summary>SN がフォールバック取得 (BIOS 系以外) で audit 警告対象</summary>
+    public bool HasSerialFallbackWarning =>
+        !string.IsNullOrEmpty(SerialNumber) && !IsSerialFromPrimarySource;
+
+    /// <summary>
+    /// UI/Excel の狭幅表示用文字列。
+    /// Primary 一致: "ABC123" / フォールバック: "ABC123 ⚠ (CSProduct)" / 取得不能: "(取得不能)"。
+    /// </summary>
+    public string SerialNumberDisplay =>
+        string.IsNullOrEmpty(SerialNumber)
+            ? "(取得不能)"
+            : IsSerialFromPrimarySource
+                ? SerialNumber
+                : $"{SerialNumber} ⚠ ({SerialSourceEntry.ShortLabel(SerialNumberSource)})";
 
     /// <summary>収集日 (ディレクトリ名から取得, 例: "2026_02_26")</summary>
     public required string CollectionDate { get; init; }

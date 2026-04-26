@@ -453,11 +453,24 @@
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
 
-                        <!-- シリアルナンバー -->
+                        <!-- シリアルナンバー (採用ソース併記。フォールバック取得時は黄色強調) -->
                         <DataGridTextColumn Header="シリアル"
-                                            Binding="{Binding SerialNumber}"
-                                            MinWidth="120"
-                                            Width="SizeToCells"/>
+                                            Binding="{Binding SerialNumberDisplay}"
+                                            MinWidth="160"
+                                            Width="SizeToCells">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasSerialFallbackWarning}" Value="True">
+                                            <Setter Property="Foreground" Value="#E65100"/>
+                                            <Setter Property="Background" Value="#FFF3E0"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
 
                         <!-- 収集日 -->
                         <DataGridTextColumn Header="収集日"
@@ -552,10 +565,22 @@
                                 </TextBlock>
                             </StackPanel>
 
-                            <TextBlock Text="{Binding SelectedPc.SerialNumber}"
+                            <!-- シリアル (採用ソース併記。フォールバック取得時はオレンジ強調) -->
+                            <TextBlock Text="{Binding SelectedPc.SerialNumberDisplay}"
                                        FontSize="12"
-                                       Foreground="#666666"
-                                       Margin="0,0,0,10"/>
+                                       Margin="0,0,0,10">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#666666"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedPc.HasSerialFallbackWarning}" Value="True">
+                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
 
                             <!-- セクション: キャプチャプレビュー -->
                             <TextBlock Text="AUTO CAPTURE"

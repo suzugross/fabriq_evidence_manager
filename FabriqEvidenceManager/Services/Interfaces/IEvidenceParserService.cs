@@ -25,11 +25,20 @@ public interface IEvidenceParserService
     void RevalidateEvidence(PcEvidence pc, EvidenceCheckOptions options);
 
     /// <summary>
-    /// 07_SerialNumber.txt からシリアルナンバーを抽出する。
+    /// 10_SerialNumber.txt から採用 (canonical) シリアルナンバーを抽出する。
+    /// 内部で <see cref="ParseSerialNumberDetailed"/> を呼んで CanonicalValue のみ返却する thin wrapper。
     /// </summary>
-    /// <param name="filePath">07_SerialNumber.txt の絶対パス</param>
+    /// <param name="filePath">10_SerialNumber.txt の絶対パス</param>
     /// <returns>シリアルナンバー文字列。取得できない場合は空文字列。</returns>
     string ParseSerialNumber(string filePath);
+
+    /// <summary>
+    /// 10_SerialNumber.txt の全 4 ブロック (Canonical / All Sources / Reference ID / Selection Policy)
+    /// をパースし、全ソース試行履歴と採用ソースラベルを含む詳細データを返す。
+    /// </summary>
+    /// <param name="filePath">10_SerialNumber.txt の絶対パス</param>
+    /// <returns>採用値 + 採用ソース + 全ソース試行 + UUID 参照</returns>
+    SerialNumberDetail ParseSerialNumberDetailed(string filePath);
 
     /// <summary>
     /// 06_MacAddress.txt からMAC情報一覧を抽出する。

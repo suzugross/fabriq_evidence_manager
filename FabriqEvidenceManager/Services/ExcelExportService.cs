@@ -24,8 +24,8 @@ namespace FabriqEvidenceManager.Services;
 /// </summary>
 public sealed class ExcelExportService : IExcelExportService
 {
-    // 固定列数 (計画PC名, 実PC名, シリアル番号, 収集日, 突合判定)
-    private const int FixedColumnCount = 5;
+    // 固定列数 (計画PC名, 実PC名, シリアル番号, SNソース, 収集日, 突合判定)
+    private const int FixedColumnCount = 6;
 
     // NIC1列あたりのサブ列数 (MAC, アダプタ, 接続名)
     private const int NicSubColumnCount = 3;
@@ -49,6 +49,8 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor InfoBg = XLColor.FromHtml("#F5F5F5");        // 薄グレー: 情報行 (Office 未インストール等)
     private static readonly XLColor MismatchFont = XLColor.FromHtml("#C62828");  // 赤文字
     private static readonly XLColor MatchFont = XLColor.FromHtml("#2E7D32");     // 緑文字
+    private static readonly XLColor CautionBg = XLColor.FromHtml("#FFF3E0");     // 薄オレンジ: フォールバック取得 (要確認)
+    private static readonly XLColor CautionFont = XLColor.FromHtml("#E65100");   // オレンジ文字
 
     /// <summary>未知 section シート用の本アプリのバージョン (manifest 経由の前方互換情報)</summary>
     private static readonly string ManagerVersion =
@@ -244,10 +246,11 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var col = 1;
 
-        // 固定列 (計画 PC 名と実 PC 名を併記して rename 成否を可視化)
+        // 固定列 (計画 PC 名と実 PC 名を併記 + SN とその採用ソースを併記)
         SetHeaderCell(ws, headerRow, col++, "計画 PC 名", BaseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "実 PC 名", BaseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "シリアル番号", BaseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "SN ソース", BaseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "収集日", BaseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "突合判定", BaseHeaderBg);
 
@@ -363,6 +366,25 @@ public sealed class ExcelExportService : IExcelExportService
         }
 
         ws.Cell(row, col++).Value = pc.SerialNumber;
+
+        // SN ソース (Primary=BIOS 以外はオレンジ強調 / 取得不能はグレー)
+        var sourceCell = ws.Cell(row, col++);
+        if (string.IsNullOrEmpty(pc.SerialNumber))
+        {
+            sourceCell.Value = "(取得不能)";
+            sourceCell.Style.Font.FontColor = XLColor.Gray;
+        }
+        else
+        {
+            sourceCell.Value = SerialSourceEntry.ShortLabel(pc.SerialNumberSource);
+            if (pc.HasSerialFallbackWarning)
+            {
+                sourceCell.Style.Fill.BackgroundColor = CautionBg;
+                sourceCell.Style.Font.FontColor = CautionFont;
+                sourceCell.Style.Font.Bold = true;
+            }
+        }
+
         ws.Cell(row, col++).Value = pc.CollectionDate;
 
         // 突合判定列

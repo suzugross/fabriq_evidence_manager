@@ -35,6 +35,10 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     [GeneratedRegex(@"Mount Point:\s*([A-Z]):")]
     private static partial Regex BitLockerMountPointPattern();
 
+    /// <summary>10_SerialNumber.txt の "All Sources" 行: "&lt;label&gt;  : &lt;value&gt;  [&lt;tag&gt;]"</summary>
+    [GeneratedRegex(@"^(?<label>.+?)\s+:\s+(?<value>.*?)\s+\[(?<tag>.+)\]\s*$")]
+    private static partial Regex SerialSourceLinePattern();
+
     // ================================================================
     // 専用 Service (DI 注入)
     // ================================================================
@@ -112,7 +116,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
                 TryParseList(dir, section, "_Partitions.csv", ParsePartitions, pc.Partitions);
                 break;
             case "09": TryParseList(dir, section, "_MacAddress.csv", ParseMacAddresses, pc.MacAddresses); break;
-            case "10": TryParseSingle(dir, section, "_SerialNumber.txt", ParseSerialNumber, v => pc.SerialNumber = v); break;
+            case "10": ApplySerialNumberDetail(pc, dir, section); break;
             case "12":
                 TryParseList(dir, section, "_FirewallProfiles.csv", ParseFirewallProfiles, pc.FirewallProfiles);
                 TryParseList(dir, section, "_FirewallRules.csv", ParseFirewallRules, pc.FirewallRules);
@@ -190,6 +194,10 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         if (options?.CheckBitLocker != false && pc.BitLockerKeys.Count == 0)
             warnings.Add("BitLockerキー未取得");
 
+        // SN 取得不能 (10_SerialNumber.txt の全 canonical candidate が失敗)
+        if (string.IsNullOrEmpty(pc.SerialNumber))
+            warnings.Add("SN取得不能");
+
         // ディレクトリ/ファイル欠損
         if (options?.CheckPcInformation != false && pc.PcInformationDirectoryPath is null)
             warnings.Add("pc_information未検出");
@@ -216,21 +224,171 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
 
     /// <inheritdoc />
     public string ParseSerialNumber(string filePath)
+        => ParseSerialNumberDetailed(filePath).CanonicalValue;
+
+    /// <inheritdoc />
+    public SerialNumberDetail ParseSerialNumberDetailed(string filePath)
     {
         var lines = ReadAllLines(filePath);
+        var canonicalValue = string.Empty;
+        var canonicalSourceLabel = string.Empty;
+        var rawSources = new List<(string Label, string Value, SerialSourceValidity Validity, string? Reason, bool Matches)>();
+        var referenceUuid = string.Empty;
+        var state = SerialBlockState.None;
 
-        // ヘッダ (====) と空行をスキップし、最初の実データ行を返す
         foreach (var line in lines)
         {
             var trimmed = line.Trim();
-            if (string.IsNullOrEmpty(trimmed))
+            if (string.IsNullOrEmpty(trimmed)) continue;
+
+            // ブロックヘッダ "---- ... ----"
+            if (trimmed.StartsWith("---- ", StringComparison.Ordinal) && trimmed.EndsWith(" ----", StringComparison.Ordinal))
+            {
+                if (trimmed.Contains("Canonical Serial Number")) state = SerialBlockState.Canonical;
+                else if (trimmed.Contains("All Sources")) state = SerialBlockState.AllSources;
+                else if (trimmed.Contains("Reference ID")) state = SerialBlockState.ReferenceId;
+                else state = SerialBlockState.None;  // Selection Policy 等は捨てる
                 continue;
-            if (trimmed.StartsWith("====") || trimmed.Contains("Serial Number", StringComparison.OrdinalIgnoreCase))
-                continue;
-            return trimmed;
+            }
+
+            // ファイル冒頭の "==== / PC Serial Number" は state=None でそのまま無視される
+
+            switch (state)
+            {
+                case SerialBlockState.Canonical:
+                    if (trimmed == "(Unretrievable)")
+                    {
+                        // canonicalValue は空のまま
+                    }
+                    else if (trimmed.StartsWith("(Source:", StringComparison.Ordinal))
+                    {
+                        var inner = trimmed.Substring("(Source:".Length).TrimEnd(')').Trim();
+                        canonicalSourceLabel = inner.StartsWith("none", StringComparison.OrdinalIgnoreCase)
+                            ? string.Empty
+                            : inner;
+                    }
+                    else if (string.IsNullOrEmpty(canonicalValue))
+                    {
+                        canonicalValue = trimmed;
+                    }
+                    break;
+
+                case SerialBlockState.AllSources:
+                    var parsed = ParseSerialSourceLine(trimmed);
+                    if (parsed is not null) rawSources.Add(parsed.Value);
+                    break;
+
+                case SerialBlockState.ReferenceId:
+                    var refMatch = SerialSourceLinePattern().Match(trimmed);
+                    if (refMatch.Success)
+                    {
+                        var v = refMatch.Groups["value"].Value.Trim();
+                        if (v != "(empty)") referenceUuid = v;
+                    }
+                    break;
+            }
         }
 
-        return string.Empty;
+        // IsSelectedCanonical を採用ソースに付ける + IsCanonicalCandidate をラベル名から決定
+        var sources = new List<SerialSourceEntry>(rawSources.Count);
+        foreach (var raw in rawSources)
+        {
+            sources.Add(new SerialSourceEntry
+            {
+                Label = raw.Label,
+                Value = raw.Value,
+                Validity = raw.Validity,
+                ValidityReason = raw.Reason,
+                MatchesCanonical = raw.Matches,
+                IsCanonicalCandidate = IsCanonicalCandidateLabel(raw.Label),
+                IsSelectedCanonical = !string.IsNullOrEmpty(canonicalSourceLabel)
+                    && string.Equals(raw.Label, canonicalSourceLabel, StringComparison.Ordinal),
+            });
+        }
+
+        return new SerialNumberDetail
+        {
+            CanonicalValue = canonicalValue,
+            CanonicalSourceLabel = canonicalSourceLabel,
+            Sources = sources,
+            ReferenceUuid = referenceUuid,
+        };
+    }
+
+    /// <summary>"All Sources" ブロックの 1 行をパース。形式に合わなければ null。</summary>
+    private static (string Label, string Value, SerialSourceValidity Validity, string? Reason, bool Matches)?
+        ParseSerialSourceLine(string line)
+    {
+        var m = SerialSourceLinePattern().Match(line);
+        if (!m.Success) return null;
+
+        var label = m.Groups["label"].Value.Trim();
+        var rawValue = m.Groups["value"].Value.Trim();
+        var value = rawValue == "(empty)" ? string.Empty : rawValue;
+        var tag = m.Groups["tag"].Value.Trim();
+
+        var (validity, reason, matches) = ParseSerialTag(tag);
+        return (label, value, validity, reason, matches);
+    }
+
+    private static (SerialSourceValidity Validity, string? Reason, bool Matches) ParseSerialTag(string tag)
+    {
+        if (tag.StartsWith("VALID, MATCH", StringComparison.Ordinal))
+            return (SerialSourceValidity.Valid, null, true);
+        if (tag.StartsWith("VALID, DIFFERENT", StringComparison.Ordinal))
+            return (SerialSourceValidity.Valid, null, false);
+        if (tag.StartsWith("VALID", StringComparison.Ordinal))
+            return (SerialSourceValidity.Valid, null, false);
+        if (tag.StartsWith("INVALID:", StringComparison.Ordinal))
+            return (SerialSourceValidity.Invalid, tag.Substring("INVALID:".Length).Trim(), false);
+        if (tag.StartsWith("INVALID", StringComparison.Ordinal))
+            return (SerialSourceValidity.Invalid, null, false);
+        if (tag.StartsWith("QUERY FAILED:", StringComparison.Ordinal))
+            return (SerialSourceValidity.QueryFailed, tag.Substring("QUERY FAILED:".Length).Trim(), false);
+        if (tag.StartsWith("QUERY FAILED", StringComparison.Ordinal))
+            return (SerialSourceValidity.QueryFailed, null, false);
+        return (SerialSourceValidity.Invalid, tag, false);  // 未知タグ
+    }
+
+    /// <summary>BaseBoard 以外は canonical 採用候補 (PowerShell 側 IsCanonicalCandidate と整合)</summary>
+    private static bool IsCanonicalCandidateLabel(string label) => label switch
+    {
+        "Win32_BIOS.SerialNumber" => true,
+        "Win32_ComputerSystemProduct.IdentifyingNumber" => true,
+        "Win32_SystemEnclosure.SerialNumber" => true,
+        "Win32_BaseBoard.SerialNumber" => false,        // record-only (motherboard SN)
+        "Registry SystemSerialNumber" => true,
+        _ => false,
+    };
+
+    private enum SerialBlockState { None, Canonical, AllSources, ReferenceId }
+
+    /// <summary>
+    /// §10 manifest dispatch 専用ヘルパ。
+    /// CanonicalValue / Source / UUID / 全ソース trail を一括で PcEvidence に充填する。
+    /// </summary>
+    private void ApplySerialNumberDetail(PcEvidence pc, string dir, ManifestSection section)
+    {
+        var fileName = section.RegularFiles.FirstOrDefault(
+            f => f.EndsWith("_SerialNumber.txt", StringComparison.OrdinalIgnoreCase));
+        if (fileName is null) return;
+        var path = Path.Combine(dir, fileName);
+        if (!File.Exists(path)) return;
+
+        try
+        {
+            var detail = ParseSerialNumberDetailed(path);
+            pc.SerialNumber = detail.CanonicalValue;
+            pc.SerialNumberSource = string.IsNullOrEmpty(detail.CanonicalSourceLabel)
+                ? null
+                : detail.CanonicalSourceLabel;
+            pc.SerialReferenceUuid = detail.ReferenceUuid;
+            foreach (var s in detail.Sources) pc.SerialSourceTrail.Add(s);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Parse Skip] {path}: {ex.Message}");
+        }
     }
 
     // ================================================================
