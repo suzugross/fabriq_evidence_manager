@@ -12,8 +12,44 @@ namespace FabriqEvidenceManager.Models;
 /// </summary>
 public sealed partial class PcEvidence : ObservableObject
 {
-    /// <summary>PC名 (例: "NEW-PC-01")</summary>
+    /// <summary>
+    /// 計画 PC 名 (例: "NEW-PC-01")。
+    /// ディレクトリ名から取得 (= manifest.selectedNewPcName = $env:SELECTED_NEW_PCNAME)。
+    /// 「rename したかった名前」を表す。
+    /// </summary>
     public required string PcName { get; init; }
+
+    /// <summary>
+    /// 実 PC 名 (manifest.computerName = $env:COMPUTERNAME)。
+    /// 「実際に OS が認識している現在の PC 名」を表す。
+    /// PcName と異なれば rename 失敗の可能性あり (HasPcNameMismatch=true)。
+    /// manifest 不在時は null。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPcNameMismatch))]
+    [NotifyPropertyChangedFor(nameof(PcNameDisplay))]
+    [NotifyPropertyChangedFor(nameof(ActualComputerNameDisplay))]
+    private string? _actualComputerName;
+
+    /// <summary>計画 PC 名と実 PC 名が一致しない (rename 失敗または不整合)。</summary>
+    public bool HasPcNameMismatch =>
+        !string.IsNullOrEmpty(ActualComputerName)
+        && !string.Equals(PcName, ActualComputerName, System.StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>UI 表示用の実 PC 名 (null/空 のときは "(実名不明)" を返す)。</summary>
+    public string ActualComputerNameDisplay =>
+        string.IsNullOrEmpty(ActualComputerName) ? "(実名不明)" : ActualComputerName;
+
+    /// <summary>
+    /// 計画名と実名を併記した表示用文字列 (狭い表示エリア用)。
+    /// 形式: "計画 | 実" (一致時) / "計画 | 実 ⚠" (不一致時) / "計画 | (実名不明)" (manifest 不在時)。
+    /// </summary>
+    public string PcNameDisplay =>
+        string.IsNullOrEmpty(ActualComputerName)
+            ? $"{PcName} | (実名不明)"
+            : HasPcNameMismatch
+                ? $"{PcName} | {ActualComputerName} ⚠"
+                : $"{PcName} | {ActualComputerName}";
 
     /// <summary>ハードウェアユニークID / シリアルナンバー (例: "T2NXCV06Y22208C")</summary>
     [ObservableProperty]

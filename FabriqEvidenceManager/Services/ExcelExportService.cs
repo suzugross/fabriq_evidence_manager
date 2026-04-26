@@ -24,8 +24,8 @@ namespace FabriqEvidenceManager.Services;
 /// </summary>
 public sealed class ExcelExportService : IExcelExportService
 {
-    // 固定列数 (PC名, シリアル番号, 収集日, 突合判定)
-    private const int FixedColumnCount = 4;
+    // 固定列数 (計画PC名, 実PC名, シリアル番号, 収集日, 突合判定)
+    private const int FixedColumnCount = 5;
 
     // NIC1列あたりのサブ列数 (MAC, アダプタ, 接続名)
     private const int NicSubColumnCount = 3;
@@ -244,8 +244,9 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var col = 1;
 
-        // 固定列
-        SetHeaderCell(ws, headerRow, col++, "PC名", BaseHeaderBg);
+        // 固定列 (計画 PC 名と実 PC 名を併記して rename 成否を可視化)
+        SetHeaderCell(ws, headerRow, col++, "計画 PC 名", BaseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "実 PC 名", BaseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "シリアル番号", BaseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "収集日", BaseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "突合判定", BaseHeaderBg);
@@ -350,8 +351,17 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var col = 1;
 
-        // PC名, シリアル番号, 収集日
+        // 計画 PC 名 + 実 PC 名 (rename 成否の可視化用に常に併記)
         ws.Cell(row, col++).Value = pc.PcName;
+        var actualCell = ws.Cell(row, col++);
+        actualCell.Value = pc.ActualComputerNameDisplay;
+        if (pc.HasPcNameMismatch)
+        {
+            actualCell.Style.Fill.BackgroundColor = MismatchBg;
+            actualCell.Style.Font.FontColor = MismatchFont;
+            actualCell.Style.Font.Bold = true;
+        }
+
         ws.Cell(row, col++).Value = pc.SerialNumber;
         ws.Cell(row, col++).Value = pc.CollectionDate;
 
@@ -431,7 +441,7 @@ public sealed class ExcelExportService : IExcelExportService
         var ws = workbook.Worksheets.Add("突合詳細");
 
         // ヘッダー
-        SetHeaderCell(ws, 1, 1, "PC名", VerifyHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", VerifyHeaderBg);
         SetHeaderCell(ws, 1, 2, "チェック項目", VerifyHeaderBg);
         SetHeaderCell(ws, 1, 3, "期待値 (hostlist)", VerifyHeaderBg);
         SetHeaderCell(ws, 1, 4, "実測値 (evidence)", VerifyHeaderBg);
@@ -445,7 +455,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             foreach (var item in report.Items)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = item.ItemName;
                 ws.Cell(row, 3).Value = item.Expected;
                 ws.Cell(row, 4).Value = item.Actual;
@@ -497,7 +507,7 @@ public sealed class ExcelExportService : IExcelExportService
         var ws = workbook.Worksheets.Add("チェックリスト");
 
         // ヘッダー
-        SetHeaderCell(ws, 1, 1, "PC名", ChecklistHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 2, "全体判定", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 3, "#", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 4, "モジュール名", ChecklistHeaderBg);
@@ -514,7 +524,7 @@ public sealed class ExcelExportService : IExcelExportService
             if (result.ModuleItems.Count == 0)
             {
                 // モジュール結果がない場合でも全体判定だけ出力
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = result.OverallStatus;
                 ApplyStatusColor(ws.Cell(row, 2), result.OverallStatus);
                 row++;
@@ -523,7 +533,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             foreach (var module in result.ModuleItems)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = result.OverallStatus;
                 ApplyStatusColor(ws.Cell(row, 2), result.OverallStatus);
                 ws.Cell(row, 3).Value = module.Order;
@@ -553,7 +563,7 @@ public sealed class ExcelExportService : IExcelExportService
         var ws = workbook.Worksheets.Add("実行履歴");
 
         // ヘッダー
-        SetHeaderCell(ws, 1, 1, "PC名", HistoryHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", HistoryHeaderBg);
         SetHeaderCell(ws, 1, 2, "タイムスタンプ", HistoryHeaderBg);
         SetHeaderCell(ws, 1, 3, "モジュール名", HistoryHeaderBg);
         SetHeaderCell(ws, 1, 4, "カテゴリ", HistoryHeaderBg);
@@ -569,7 +579,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             foreach (var entry in entries)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = entry.Timestamp;
                 ws.Cell(row, 3).Value = entry.ModuleName;
                 ws.Cell(row, 4).Value = entry.Category;
@@ -600,7 +610,7 @@ public sealed class ExcelExportService : IExcelExportService
         var ws = workbook.Worksheets.Add("ベースライン突合");
 
         // ヘッダー
-        SetHeaderCell(ws, 1, 1, "PC名", BaselineHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
         SetHeaderCell(ws, 1, 2, "モジュール名", BaselineHeaderBg);
         SetHeaderCell(ws, 1, 3, "カテゴリ", BaselineHeaderBg);
         SetHeaderCell(ws, 1, 4, "期待ステータス", BaselineHeaderBg);
@@ -614,7 +624,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             foreach (var item in report.Items)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = item.ModuleName;
                 ws.Cell(row, 3).Value = item.Category;
                 ws.Cell(row, 4).Value = item.ExpectedStatus;
@@ -664,7 +674,7 @@ public sealed class ExcelExportService : IExcelExportService
         var ws = workbook.Worksheets.Add("ユーザー・グループ");
 
         // --- ローカルユーザー セクション ---
-        SetHeaderCell(ws, 1, 1, "PC名", UserGroupHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", UserGroupHeaderBg);
         SetHeaderCell(ws, 1, 2, "種別", UserGroupHeaderBg);
         SetHeaderCell(ws, 1, 3, "名前", UserGroupHeaderBg);
         SetHeaderCell(ws, 1, 4, "有効", UserGroupHeaderBg);
@@ -678,7 +688,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var user in pc.LocalUsers)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = "ユーザー";
                 ws.Cell(row, 3).Value = user.Name;
                 ws.Cell(row, 4).Value = user.Enabled ? "有効" : "無効";
@@ -692,7 +702,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             foreach (var group in pc.LocalGroups)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = "グループ";
                 ws.Cell(row, 3).Value = group.Name;
                 ws.Cell(row, 4).Value = "";
@@ -703,7 +713,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             foreach (var member in pc.LocalGroupMembers)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = "メンバー";
                 ws.Cell(row, 3).Value = $"{member.GroupName} → {member.MemberName}";
                 ws.Cell(row, 4).Value = "";
@@ -727,7 +737,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("ドメイン状態");
 
-        SetHeaderCell(ws, 1, 1, "PC名", DomainHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", DomainHeaderBg);
         SetHeaderCell(ws, 1, 2, "PartOfDomain", DomainHeaderBg);
         SetHeaderCell(ws, 1, 3, "ドメイン(WORKGROUP)", DomainHeaderBg);
         SetHeaderCell(ws, 1, 4, "ドメインロール", DomainHeaderBg);
@@ -741,7 +751,7 @@ public sealed class ExcelExportService : IExcelExportService
         foreach (var pc in pcEvidences)
         {
             if (pc.DomainStatus is null) continue;
-            ws.Cell(row, 1).Value = pc.PcName;
+            ws.Cell(row, 1).Value = pc.PcNameDisplay;
             ws.Cell(row, 2).Value = pc.DomainStatus.PartOfDomain ? "YES" : "NO";
             ws.Cell(row, 3).Value = pc.DomainStatus.Domain;
             ws.Cell(row, 4).Value = pc.DomainStatus.DomainRole;
@@ -766,7 +776,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("FWプロファイル");
 
-        SetHeaderCell(ws, 1, 1, "PC名", FwHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", FwHeaderBg);
         SetHeaderCell(ws, 1, 2, "プロファイル", FwHeaderBg);
         SetHeaderCell(ws, 1, 3, "有効", FwHeaderBg);
         SetHeaderCell(ws, 1, 4, "受信デフォルト", FwHeaderBg);
@@ -778,7 +788,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var profile in pc.FirewallProfiles)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = profile.Name;
                 ws.Cell(row, 3).Value = profile.Enabled ? "有効" : "無効";
                 ws.Cell(row, 4).Value = profile.DefaultInboundAction;
@@ -799,7 +809,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("FWルール");
 
-        SetHeaderCell(ws, 1, 1, "PC名", FwHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", FwHeaderBg);
         SetHeaderCell(ws, 1, 2, "ルール名", FwHeaderBg);
         SetHeaderCell(ws, 1, 3, "有効", FwHeaderBg);
         SetHeaderCell(ws, 1, 4, "方向", FwHeaderBg);
@@ -811,7 +821,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var rule in pc.FirewallRules)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = rule.DisplayName;
                 ws.Cell(row, 3).Value = rule.Enabled ? "有効" : "無効";
                 ws.Cell(row, 4).Value = rule.Direction;
@@ -834,7 +844,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("オプション機能");
 
-        SetHeaderCell(ws, 1, 1, "PC名", FeatureHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", FeatureHeaderBg);
         SetHeaderCell(ws, 1, 2, "機能名", FeatureHeaderBg);
         SetHeaderCell(ws, 1, 3, "状態", FeatureHeaderBg);
 
@@ -843,7 +853,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var feature in pc.OptionalFeatures)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = feature.FeatureName;
                 var stateCell = ws.Cell(row, 3);
                 stateCell.Value = feature.State;
@@ -868,7 +878,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("ユーザープロファイル");
 
-        SetHeaderCell(ws, 1, 1, "PC名", ProfileHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", ProfileHeaderBg);
         SetHeaderCell(ws, 1, 2, "ローカルパス", ProfileHeaderBg);
         SetHeaderCell(ws, 1, 3, "SID", ProfileHeaderBg);
         SetHeaderCell(ws, 1, 4, "最終使用日時", ProfileHeaderBg);
@@ -879,7 +889,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var profile in pc.UserProfiles)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = profile.LocalPath;
                 ws.Cell(row, 3).Value = profile.SID;
                 ws.Cell(row, 4).Value = profile.LastUseTime;
@@ -902,7 +912,7 @@ public sealed class ExcelExportService : IExcelExportService
         var ws = workbook.Worksheets.Add("ディスク・パーティション");
 
         // --- ディスク セクション ---
-        SetHeaderCell(ws, 1, 1, "PC名", DiskHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", DiskHeaderBg);
         SetHeaderCell(ws, 1, 2, "種別", DiskHeaderBg);
         SetHeaderCell(ws, 1, 3, "番号", DiskHeaderBg);
         SetHeaderCell(ws, 1, 4, "名前", DiskHeaderBg);
@@ -917,7 +927,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var disk in pc.Disks)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = "ディスク";
                 ws.Cell(row, 3).Value = disk.Number;
                 ws.Cell(row, 4).Value = disk.FriendlyName;
@@ -931,7 +941,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             foreach (var part in pc.Partitions)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = "パーティション";
                 ws.Cell(row, 3).Value = $"{part.DiskNumber}-{part.PartitionNumber}";
                 ws.Cell(row, 4).Value = part.DriveLetter;
@@ -957,14 +967,14 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("電源設定");
 
-        SetHeaderCell(ws, 1, 1, "PC名", PowerHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", PowerHeaderBg);
         SetHeaderCell(ws, 1, 2, "アクティブプラン", PowerHeaderBg);
 
         var row = 2;
         foreach (var pc in pcEvidences)
         {
             if (pc.PowerSettings is null) continue;
-            ws.Cell(row, 1).Value = pc.PcName;
+            ws.Cell(row, 1).Value = pc.PcNameDisplay;
             ws.Cell(row, 2).Value = pc.PowerSettings.ActivePlanName;
             row++;
         }
@@ -982,7 +992,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("WiFiプロファイル");
 
-        SetHeaderCell(ws, 1, 1, "PC名", WiFiHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", WiFiHeaderBg);
         SetHeaderCell(ws, 1, 2, "プロファイル名", WiFiHeaderBg);
 
         var row = 2;
@@ -990,7 +1000,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var profile in pc.WiFiProfiles)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = profile;
                 row++;
             }
@@ -1009,7 +1019,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("復元ポイント");
 
-        SetHeaderCell(ws, 1, 1, "PC名", RestoreHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", RestoreHeaderBg);
         SetHeaderCell(ws, 1, 2, "シーケンス番号", RestoreHeaderBg);
         SetHeaderCell(ws, 1, 3, "説明", RestoreHeaderBg);
         SetHeaderCell(ws, 1, 4, "種類", RestoreHeaderBg);
@@ -1020,7 +1030,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var rp in pc.RestorePoints)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = rp.SequenceNumber;
                 ws.Cell(row, 3).Value = rp.Description;
                 ws.Cell(row, 4).Value = rp.RestorePointType;
@@ -1042,7 +1052,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("Windows Defender");
 
-        SetHeaderCell(ws, 1, 1, "PC名", DefenderHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", DefenderHeaderBg);
         SetHeaderCell(ws, 1, 2, "AMService", DefenderHeaderBg);
         SetHeaderCell(ws, 1, 3, "Antispyware", DefenderHeaderBg);
         SetHeaderCell(ws, 1, 4, "Antivirus", DefenderHeaderBg);
@@ -1063,7 +1073,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             if (pc.DefenderStatus is null) continue;
             var d = pc.DefenderStatus;
-            ws.Cell(row, 1).Value = pc.PcName;
+            ws.Cell(row, 1).Value = pc.PcNameDisplay;
             ws.Cell(row, 2).Value = d.AMServiceEnabled ? "ON" : "OFF";
             ws.Cell(row, 3).Value = d.AntispywareEnabled ? "ON" : "OFF";
             ws.Cell(row, 4).Value = d.AntivirusEnabled ? "ON" : "OFF";
@@ -1108,7 +1118,7 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("Windows Update");
 
-        SetHeaderCell(ws, 1, 1, "PC名", UpdateHeaderBg);
+        SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", UpdateHeaderBg);
         SetHeaderCell(ws, 1, 2, "HotFixID", UpdateHeaderBg);
         SetHeaderCell(ws, 1, 3, "説明", UpdateHeaderBg);
         SetHeaderCell(ws, 1, 4, "インストール者", UpdateHeaderBg);
@@ -1119,7 +1129,7 @@ public sealed class ExcelExportService : IExcelExportService
         {
             foreach (var update in pc.WindowsUpdates)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = update.HotFixID;
                 ws.Cell(row, 3).Value = update.Description;
                 ws.Cell(row, 4).Value = update.InstalledBy;
@@ -1142,7 +1152,7 @@ public sealed class ExcelExportService : IExcelExportService
 
         var headers = new[]
         {
-            "PC名", "シリアル番号", "収集日",
+            "PC名 (計画|実)", "シリアル番号", "収集日",
             "プロダクト名", "ライセンス状態", "プロダクトキー末尾",
             "ライセンスファミリ", "プロダクトキーチャネル", "残り猶予期間(分)",
             "KMS configured", "KMS discovered",
@@ -1180,7 +1190,7 @@ public sealed class ExcelExportService : IExcelExportService
         IXLWorksheet ws, int row, PcEvidence pc,
         WindowsLicensingProduct? product, WindowsLicensingService? service)
     {
-        ws.Cell(row, 1).Value = pc.PcName;
+        ws.Cell(row, 1).Value = pc.PcNameDisplay;
         ws.Cell(row, 2).Value = pc.SerialNumber;
         ws.Cell(row, 3).Value = pc.CollectionDate;
 
@@ -1234,7 +1244,7 @@ public sealed class ExcelExportService : IExcelExportService
 
         var headers = new[]
         {
-            "PC名", "シリアル番号", "収集日",
+            "PC名 (計画|実)", "シリアル番号", "収集日",
             "Office インストール状態",
             "C2R ProductReleaseIds", "C2R バージョン", "C2R Platform",
             "C2R UpdateChannel", "C2R AudienceData", "C2R ClientCulture",
@@ -1280,7 +1290,7 @@ public sealed class ExcelExportService : IExcelExportService
         IXLWorksheet ws, int row, PcEvidence pc,
         OfficeLicenseData lic, OfficeProductLicense? product)
     {
-        ws.Cell(row, 1).Value = pc.PcName;
+        ws.Cell(row, 1).Value = pc.PcNameDisplay;
         ws.Cell(row, 2).Value = pc.SerialNumber;
         ws.Cell(row, 3).Value = pc.CollectionDate;
         ws.Cell(row, 4).Value = lic.IsOfficeInstalled ? "インストール済み" : "未インストール";
@@ -1358,7 +1368,7 @@ public sealed class ExcelExportService : IExcelExportService
 
             // データテーブルヘッダ (4 行目)
             const int headerRow = 4;
-            SetHeaderCell(ws, headerRow, 1, "PC名", XLColor.FromHtml("#7B1FA2"));
+            SetHeaderCell(ws, headerRow, 1, "PC名 (計画|実)", XLColor.FromHtml("#7B1FA2"));
             SetHeaderCell(ws, headerRow, 2, "ファイル名", XLColor.FromHtml("#7B1FA2"));
             SetHeaderCell(ws, headerRow, 3, "種別", XLColor.FromHtml("#7B1FA2"));
             SetHeaderCell(ws, headerRow, 4, "raw 内容", XLColor.FromHtml("#7B1FA2"));
@@ -1366,7 +1376,7 @@ public sealed class ExcelExportService : IExcelExportService
             var row = headerRow + 1;
             foreach (var (pc, section) in group)
             {
-                ws.Cell(row, 1).Value = pc.PcName;
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = Path.GetFileName(section.FilePath);
                 ws.Cell(row, 3).Value = section.FileType.ToString();
                 ws.Cell(row, 4).Value = section.RawContent;

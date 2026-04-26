@@ -419,8 +419,8 @@
                     </DataGrid.RowStyle>
 
                     <DataGrid.Columns>
-                        <!-- PC名 -->
-                        <DataGridTextColumn Header="PC名"
+                        <!-- 計画 PC 名 (hostlist で選択された名前 = manifest.selectedNewPcName) -->
+                        <DataGridTextColumn Header="計画 PC 名"
                                             Binding="{Binding PcName}"
                                             MinWidth="100"
                                             Width="SizeToCells">
@@ -429,6 +429,26 @@
                                     <Setter Property="FontWeight" Value="SemiBold"/>
                                     <Setter Property="Foreground" Value="#222222"/>
                                     <Setter Property="Padding" Value="4,2"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- 実 PC 名 (manifest.computerName = $env:COMPUTERNAME / rename 後の現在の名前) -->
+                        <DataGridTextColumn Header="実 PC 名"
+                                            Binding="{Binding ActualComputerNameDisplay}"
+                                            MinWidth="100"
+                                            Width="SizeToCells">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#222222"/>
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasPcNameMismatch}" Value="True">
+                                            <Setter Property="Foreground" Value="#C62828"/>
+                                            <Setter Property="Background" Value="#FCE4EC"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
@@ -508,11 +528,30 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12,8">
                         <StackPanel>
 
-                            <!-- PC名ヘッダー -->
+                            <!-- 計画 PC 名ヘッダー -->
                             <TextBlock Text="{Binding SelectedPc.PcName}"
                                        FontSize="16" FontWeight="Bold"
                                        Foreground="#222222"
                                        Margin="0,0,0,2"/>
+
+                            <!-- 実 PC 名 (manifest.computerName / 不一致時赤強調) -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <TextBlock Text="実: " FontSize="11" Foreground="#666666"/>
+                                <TextBlock Text="{Binding SelectedPc.ActualComputerNameDisplay}" FontSize="11">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#666666"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedPc.HasPcNameMismatch}" Value="True">
+                                                    <Setter Property="Foreground" Value="#C62828"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+
                             <TextBlock Text="{Binding SelectedPc.SerialNumber}"
                                        FontSize="12"
                                        Foreground="#666666"

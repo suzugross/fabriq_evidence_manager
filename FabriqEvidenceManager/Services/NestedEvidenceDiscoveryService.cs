@@ -125,6 +125,8 @@ public sealed class NestedEvidenceDiscoveryService : IEvidenceDiscoveryService
         {
             pc.Manifest = _manifestReader.Read(pcInformationDirectoryPath);
             pc.ManifestError = null;
+            // 実 PC 名 (rename 後の OS 上の名前) を manifest から取得し、UI/Excel の併記表示に供する
+            pc.ActualComputerName = pc.Manifest.ComputerName;
         }
         catch (ManifestNotFoundException ex)
         {

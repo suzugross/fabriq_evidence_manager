@@ -102,6 +102,10 @@ public partial class MainWindowViewModel : ObservableObject
     {
         var cautions = new List<string>();
 
+        // PC名不一致 (rename が効いていない可能性: 計画 != 実)
+        if (pc.HasPcNameMismatch)
+            cautions.Add($"PC名不一致(計画={pc.PcName} / 実={pc.ActualComputerName})");
+
         // hostlist 突合
         if (_hostlistService.IsLoaded)
         {
