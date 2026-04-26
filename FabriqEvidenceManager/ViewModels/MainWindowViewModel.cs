@@ -87,6 +87,22 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
+    /// SettingsWindow 用の ViewModel を構築する (依存性注入のヘルパ)。
+    /// 設定ダイアログから呼び出すため、code-behind から本メソッド経由で生成する。
+    /// </summary>
+    public SettingsViewModel CreateSettingsViewModel()
+    {
+        return new SettingsViewModel(
+            CheckOptions,
+            _baselineService,
+            onBaselineCategoriesChanged: () =>
+            {
+                // ベースラインカテゴリ ON/OFF 変更後は全 PC を再評価
+                EvaluateCautionsForAllPcs();
+            });
+    }
+
+    /// <summary>
     /// 全PCの Caution (要確認) 判定を実行する。
     /// hostlist不一致 / チェックリストNG / ベースラインNG を検出し、
     /// PcEvidence.HasCaution / CautionMessage を更新する。

@@ -17,6 +17,7 @@ namespace FabriqEvidenceManager.Services;
 public sealed class BaselineService : IBaselineService
 {
     private readonly IReadOnlyList<IBaselineComparator> _comparators;
+    private HashSet<string> _enabledCategoryIds;
 
     /// <inheritdoc />
     public string? BaselinePcName { get; private set; }
@@ -24,10 +25,30 @@ public sealed class BaselineService : IBaselineService
     public BaselineService(IEnumerable<IBaselineComparator> comparators)
     {
         _comparators = comparators.ToList();
+        // 初期値: IsEnabledByDefault=true のカテゴリを enable
+        _enabledCategoryIds = _comparators
+            .Where(c => c.IsEnabledByDefault)
+            .Select(c => c.CategoryId)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     /// <inheritdoc />
     public bool IsLoaded => _comparators.Any(c => c.HasBaselineData);
+
+    /// <inheritdoc />
+    public IReadOnlyList<BaselineCategoryInfo> AvailableCategories =>
+        _comparators
+            .Select(c => new BaselineCategoryInfo(c.CategoryId, c.DisplayName, c.IsEnabledByDefault))
+            .ToList();
+
+    /// <inheritdoc />
+    public IReadOnlyCollection<string> EnabledCategoryIds => _enabledCategoryIds;
+
+    /// <inheritdoc />
+    public void SetEnabledCategoryIds(IEnumerable<string> ids)
+    {
+        _enabledCategoryIds = ids.ToHashSet(StringComparer.Ordinal);
+    }
 
     /// <inheritdoc />
     public int Load(string csvFilePath)
@@ -76,6 +97,8 @@ public sealed class BaselineService : IBaselineService
         var report = new BaselineComparisonReport { PcName = targetPc.PcName };
         foreach (var comparator in _comparators)
         {
+            // 設定で OFF にされたカテゴリはスキップ
+            if (!_enabledCategoryIds.Contains(comparator.CategoryId)) continue;
             comparator.Compare(report, targetPc);
         }
         return report;

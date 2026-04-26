@@ -179,41 +179,12 @@
         <!-- ================================================================ -->
         <DockPanel Grid.Row="2" Margin="12,4,12,4">
 
-            <!-- エビデンス取得チェック項目 -->
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
-                <TextBlock Text="取得チェック:"
-                           FontSize="11" FontWeight="Bold"
-                           Foreground="#555555"
-                           VerticalAlignment="Center"
-                           Margin="0,0,10,0"/>
-                <CheckBox Content="MAC(有線)"
-                          IsChecked="{Binding CheckOptions.CheckEthernetMac}"
-                          VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <CheckBox Content="MAC(Wi-Fi)"
-                          IsChecked="{Binding CheckOptions.CheckWifiMac}"
-                          VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <CheckBox Content="BitLocker"
-                          IsChecked="{Binding CheckOptions.CheckBitLocker}"
-                          VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <CheckBox Content="PC情報"
-                          IsChecked="{Binding CheckOptions.CheckPcInformation}"
-                          VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <CheckBox Content="キャプチャ"
-                          IsChecked="{Binding CheckOptions.CheckAutoCapture}"
-                          VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <CheckBox Content="チェックリスト"
-                          IsChecked="{Binding CheckOptions.CheckChecklist}"
-                          VerticalAlignment="Center" Margin="0,0,20,0"/>
-
-                <TextBlock Text="|" Foreground="#999999" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBlock Text="突合:"
-                           FontSize="11"
-                           Foreground="#555555"
-                           VerticalAlignment="Center"
-                           Margin="0,0,10,0"/>
-                <CheckBox Content="余剰プリンタ検出"
-                          IsChecked="{Binding CheckOptions.CheckExtraPrinters}"
-                          VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <!-- 設定ボタン (取得チェック・ベースライン突合カテゴリは SettingsWindow に集約) -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,6">
+                <Button Content="⚙ 設定"
+                        Click="OnSettingsClick"
+                        Padding="14,4"
+                        FontSize="12"/>
             </StackPanel>
 
             <!-- 検索ボックス (上部に固定) -->

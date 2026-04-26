@@ -36,4 +36,17 @@ public partial class MainWindow : Window
         var detailWindow = new PcDetailWindow(detailVm) { Owner = this };
         detailWindow.Show();
     }
+
+    /// <summary>
+    /// 設定ボタンクリックで SettingsWindow を modeless で開く。
+    /// 変更は即時反映 (OK/Cancel ではなく閉じるのみ)。
+    /// </summary>
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+
+        var settingsVm = vm.CreateSettingsViewModel();
+        var settingsWindow = new SettingsWindow(settingsVm) { Owner = this };
+        settingsWindow.Show();
+    }
 }

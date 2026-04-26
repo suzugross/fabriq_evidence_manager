@@ -15,6 +15,19 @@ public interface IBaselineService
     /// <summary>ベースラインPC名 (未設定時は null)</summary>
     string? BaselinePcName { get; }
 
+    /// <summary>登録済みコンパレータのメタデータ一覧 (設定 UI で使用)</summary>
+    IReadOnlyList<BaselineCategoryInfo> AvailableCategories { get; }
+
+    /// <summary>現在 CompareAll で実行されるカテゴリ ID のセット</summary>
+    IReadOnlyCollection<string> EnabledCategoryIds { get; }
+
+    /// <summary>
+    /// CompareAll の対象カテゴリを指定する。
+    /// ここに含まれない CategoryId のコンパレータは <see cref="CompareAll"/> でスキップされる
+    /// (キャッシュ自体は LoadFromPc で保持されている)。
+    /// </summary>
+    void SetEnabledCategoryIds(IEnumerable<string> ids);
+
     /// <summary>
     /// ベースライン CSV を読み込む。
     /// </summary>

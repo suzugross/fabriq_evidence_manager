@@ -74,6 +74,57 @@ public class BaselineServiceTests
         Assert.Empty(report.Items);
     }
 
+    [Fact]
+    public void AvailableCategories_ReturnsAllRegisteredComparators()
+    {
+        var sut = MakeService();
+
+        var categories = sut.AvailableCategories;
+
+        Assert.Equal(5, categories.Count);
+        Assert.Contains(categories, c => c.CategoryId == "ExecutionSummary");
+        Assert.Contains(categories, c => c.CategoryId == "SystemInfo");
+        Assert.Contains(categories, c => c.CategoryId == "Checklist");
+        Assert.Contains(categories, c => c.CategoryId == "InstalledApps");
+        Assert.Contains(categories, c => c.CategoryId == "License");
+    }
+
+    [Fact]
+    public void EnabledCategoryIds_Default_IncludesAllRegistered()
+    {
+        // 全 Comparator が IsEnabledByDefault=true なのでデフォルトで全 enable
+        var sut = MakeService();
+
+        Assert.Equal(5, sut.EnabledCategoryIds.Count);
+    }
+
+    [Fact]
+    public void SetEnabledCategoryIds_OnlyLicense_CompareAllSkipsOthers()
+    {
+        // SettingsWindow で License 以外を OFF にしたシナリオ
+        var sut = MakeService();
+        var baseline = new PcEvidence { PcName = "BASE", CollectionDate = "2026" };
+        baseline.WindowsLicense = new WindowsLicenseData { Products = [], Service = null };
+        baseline.OfficeLicense = new OfficeLicenseData { IsOfficeInstalled = false, Products = [] };
+        sut.LoadFromPc(baseline);
+
+        sut.SetEnabledCategoryIds(new[] { "License" });
+        Assert.Single(sut.EnabledCategoryIds);
+
+        var target = new PcEvidence { PcName = "TARGET", CollectionDate = "2026" };
+        target.WindowsLicense = new WindowsLicenseData { Products = [], Service = null };
+        target.OfficeLicense = new OfficeLicenseData { IsOfficeInstalled = false, Products = [] };
+
+        var report = sut.CompareAll(target);
+
+        // License のみ実行されたこと (OFF カテゴリの Comparator は呼ばれない)
+        Assert.NotNull(report.LicenseComparison);
+        Assert.Null(report.SystemInfoComparison);
+        Assert.Null(report.ChecklistComparison);
+        Assert.Null(report.InstalledAppsComparison);
+        Assert.Empty(report.Items);
+    }
+
     /// <summary>5 つの Comparator (License/SystemInfo/Checklist/InstalledApps/ExecutionSummary) を全て登録</summary>
     private static BaselineService MakeService()
     {
