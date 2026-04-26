@@ -3,6 +3,133 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
+        <!-- Bool → Visibility 変換 -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: Button (明るい筐体に馴染むパーツ風) -->
+        <!-- ============================================================ -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#989DA1"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#AAAEB3"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#4CAF50"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#84898E"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#388E3C"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#B2B6BA"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#94989C"/>
+                                <Setter Property="Foreground" Value="#999999"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: TextBox -->
+        <!-- ============================================================ -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="Black"/>
+            <Setter Property="SelectionBrush" Value="#4CAF50"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: TextBlock (デフォルト) -->
+        <!-- ============================================================ -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#2C2C2C"/>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: GroupBox -->
+        <!-- ============================================================ -->
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground" Value="#2C2C2C"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: DataGrid -->
+        <!-- ============================================================ -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#E1E4E7"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
+            <Setter Property="RowBackground" Value="#EDEEEF"/>
+            <Setter Property="AlternatingRowBackground" Value="#E1E4E7"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#A4A8AD"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#A4A8AD"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+        </Style>
+
+        <!-- DataGrid ColumnHeader -->
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#A0A6AB"/>
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <!-- DataGrid Cell -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="#222222"/>
+            <Setter Property="BorderBrush" Value="#A4A8AD"/>
+            <Setter Property="BorderThickness" Value="0,0,0,0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#4CAF50"/>
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="BorderBrush" Value="#388E3C"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ============================================================ -->
+        <!-- CentreCOM テーマ: ProgressBar (ネットワーク風グリーン) -->
+        <!-- ============================================================ -->
+        <Style TargetType="ProgressBar">
+            <Setter Property="Background" Value="#A4A8AD"/>
+            <Setter Property="Foreground" Value="#4CAF50"/>
+            <Setter Property="BorderBrush" Value="#757B82"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
     </Application.Resources>
 </Application>
