@@ -22,8 +22,12 @@ public sealed partial class ChecklistParserService : IChecklistParserService
     [GeneratedRegex(@"<tr[^>]*>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>.*?<span[^>]*>(.*?)</span>", RegexOptions.Singleline)]
     private static partial Regex VerifyRowPattern();
 
-    /// <summary>モジュールテーブルの &lt;tr&gt; 行: 6列 (#, Module, Category, Result badge, Time, Message)</summary>
-    [GeneratedRegex(@"<tr[^>]*>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>.*?<span[^>]*>(.*?)</span>.*?</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>", RegexOptions.Singleline)]
+    /// <summary>
+    /// モジュールテーブルの &lt;tr&gt; 行: 7列
+    /// (#, Module, Category, Result badge, Verified badge, Time, Message)。
+    /// fabriq kernel 2.x で Verified 列が新設された。
+    /// </summary>
+    [GeneratedRegex(@"<tr[^>]*>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>.*?<span[^>]*>(.*?)</span>.*?</td>\s*<td[^>]*>.*?<span[^>]*>(.*?)</span>.*?</td>\s*<td[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>", RegexOptions.Singleline)]
     private static partial Regex ModuleRowPattern();
 
     /// <summary>HTMLタグ除去</summary>
@@ -83,8 +87,9 @@ public sealed partial class ChecklistParserService : IChecklistParserService
                     ModuleName = StripHtml(row.Groups[2].Value),
                     Category = StripHtml(row.Groups[3].Value),
                     Status = StripHtml(row.Groups[4].Value),
-                    Time = StripHtml(row.Groups[5].Value),
-                    Message = StripHtml(row.Groups[6].Value),
+                    VerifiedStatus = StripHtml(row.Groups[5].Value),
+                    Time = StripHtml(row.Groups[6].Value),
+                    Message = StripHtml(row.Groups[7].Value),
                 });
             }
         }

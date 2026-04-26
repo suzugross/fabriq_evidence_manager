@@ -78,12 +78,38 @@ public sealed class ExcelExportService : IExcelExportService
                            + maxNicCount * NicSubColumnCount
                            + allDriveLetters.Count * DriveSubColumnCount;
 
+        // ===== STEP 1: PC -> 詳細ファイル相対パスを pre-compute =====
+        // 詳細データを持つ PC のみエントリ化 (ファイル衝突回避を伴う)
+        var mainDir = Path.GetDirectoryName(outputFilePath) ?? string.Empty;
+        var detailDir = Path.Combine(mainDir, EvidenceConstants.PcDetailsSubdirName);
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var detailRelPaths = new Dictionary<PcEvidence, string>();
+        foreach (var pc in pcEvidences)
+        {
+            if (!HasAnyDetailData(pc, options)) continue;
+            var fileName = GetPcDetailFileName(pc, usedNames);
+            detailRelPaths[pc] = $"{EvidenceConstants.PcDetailsSubdirName}/{fileName}";
+        }
+
+        // ===== STEP 2: 詳細ファイルを出力 =====
+        if (detailRelPaths.Count > 0)
+        {
+            Directory.CreateDirectory(detailDir);
+            foreach (var (pc, relPath) in detailRelPaths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var detailPath = Path.Combine(mainDir, relPath.Replace('/', Path.DirectorySeparatorChar));
+                ExportPcDetailWorkbook(pc, detailPath, options, cancellationToken);
+            }
+        }
+
+        // ===== STEP 3: main ファイル (1 行/PC のサマリシートのみ) =====
         using var workbook = new XLWorkbook();
 
-        // ---- Sheet 1: PC情報一覧 ----
+        // ---- Sheet 1: PC情報一覧 (PC 名は詳細ファイルへハイパーリンク) ----
         var ws = workbook.Worksheets.Add(EvidenceConstants.ExcelSheetName);
 
-        // M6: 案件メタデータブロック (1〜6 行目)。DeliveryMetadata 指定時のみ出力。
+        // M6: 案件メタデータブロック (1〜6 行目)
         var headerRow = 1;
         if (options?.DeliveryMetadata is not null)
         {
@@ -96,146 +122,187 @@ public sealed class ExcelExportService : IExcelExportService
         for (var i = 0; i < pcEvidences.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            WriteMainDataRow(ws, row: headerRow + 1 + i, pcEvidences[i], maxNicCount, allDriveLetters, options);
+            detailRelPaths.TryGetValue(pcEvidences[i], out var relPath);
+            WriteMainDataRow(ws, headerRow + 1 + i, pcEvidences[i], maxNicCount, allDriveLetters, options, relPath);
         }
 
         ApplyStyles(ws, pcEvidences.Count, totalColumns, headerRow);
 
-        // ---- Sheet 2: 突合詳細 ----
-        if (options?.VerificationReports is { Count: > 0 })
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteVerificationSheet(workbook, pcEvidences, options.VerificationReports);
-        }
-
-        // ---- Sheet 3: チェックリスト ----
-        if (options?.ChecklistResults is { Count: > 0 })
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteChecklistSheet(workbook, pcEvidences, options.ChecklistResults);
-        }
-
-        // ---- Sheet 4: 実行履歴 ----
-        if (options?.ExportHistories is { Count: > 0 })
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteHistorySheet(workbook, pcEvidences, options.ExportHistories);
-        }
-
-        // ---- Sheet 5: ベースライン突合 ----
-        if (options?.BaselineReports is { Count: > 0 })
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteBaselineSheet(workbook, pcEvidences, options.BaselineReports);
-        }
-
-        // ---- Sheet 6: ユーザー・グループ ----
-        if (pcEvidences.Any(pc => pc.LocalUsers.Count > 0 || pc.LocalGroups.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteUserGroupSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 7: ドメイン状態 ----
+        // ---- Sheet 2: ドメイン状態 (1 行/PC) ----
         if (pcEvidences.Any(pc => pc.DomainStatus is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteDomainStatusSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 8: FWプロファイル ----
-        if (pcEvidences.Any(pc => pc.FirewallProfiles.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteFirewallProfileSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 9: FWルール ----
-        if (pcEvidences.Any(pc => pc.FirewallRules.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteFirewallRuleSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 10: オプション機能 ----
-        if (pcEvidences.Any(pc => pc.OptionalFeatures.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteOptionalFeatureSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 11: ユーザープロファイル ----
-        if (pcEvidences.Any(pc => pc.UserProfiles.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteUserProfileSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 12: ディスク・パーティション ----
-        if (pcEvidences.Any(pc => pc.Disks.Count > 0 || pc.Partitions.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteDiskPartitionSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 13: 電源設定 ----
+        // ---- Sheet 3: 電源設定 (1 行/PC) ----
         if (pcEvidences.Any(pc => pc.PowerSettings is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
             WritePowerSettingsSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 14: WiFiプロファイル ----
-        if (pcEvidences.Any(pc => pc.WiFiProfiles.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteWiFiProfileSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 15: 復元ポイント ----
-        if (pcEvidences.Any(pc => pc.RestorePoints.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteRestorePointSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 16: Windows Defender ----
+        // ---- Sheet 4: Windows Defender (1 行/PC) ----
         if (pcEvidences.Any(pc => pc.DefenderStatus is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteDefenderStatusSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 17: Windows Update ----
-        if (pcEvidences.Any(pc => pc.WindowsUpdates.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteWindowsUpdateSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 18: Windowsライセンス ----
+        // ---- Sheet 5: Windowsライセンス (典型的に 1 行/PC、フリート license posture 一覧用途) ----
         if (pcEvidences.Any(pc => pc.WindowsLicense is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteWindowsLicenseSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 19: Officeライセンス ----
+        // ---- Sheet 6: Officeライセンス ----
         if (pcEvidences.Any(pc => pc.OfficeLicense is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteOfficeLicenseSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 20+: 未知 section ID (manifest 経由・未対応) ----
-        if (pcEvidences.Any(pc => pc.UnknownSections.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteUnknownSectionSheets(workbook, pcEvidences);
-        }
-
         workbook.SaveAs(outputFilePath);
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 1 PC 分の詳細 Excel ファイルを出力する。
+    /// 「1 PC = N 行になりうる」全シート (突合詳細/チェックリスト/実行履歴/ベースライン/
+    /// ユーザー・グループ/FWプロファイル/FWルール/オプション機能/ユーザープロファイル/
+    /// ディスク・パーティション/WiFi/復元ポイント/Windows Update/未知 section) を含む。
+    /// 既存のシート出力メソッドを単一要素リストで再利用 (DRY)。
+    /// </summary>
+    private static void ExportPcDetailWorkbook(
+        PcEvidence pc, string detailFilePath,
+        ExcelExportOptions? options, CancellationToken cancellationToken)
+    {
+        using var workbook = new XLWorkbook();
+        var single = new[] { pc };
+
+        if (options?.VerificationReports?.ContainsKey(pc.PcName) == true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteVerificationSheet(workbook, single, options.VerificationReports);
+        }
+        if (options?.ChecklistResults?.ContainsKey(pc.PcName) == true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteChecklistSheet(workbook, single, options.ChecklistResults);
+        }
+        if (options?.ExportHistories?.ContainsKey(pc.PcName) == true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteHistorySheet(workbook, single, options.ExportHistories);
+        }
+        if (options?.BaselineReports?.ContainsKey(pc.PcName) == true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteBaselineSheet(workbook, single, options.BaselineReports);
+        }
+        if (pc.LocalUsers.Count > 0 || pc.LocalGroups.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteUserGroupSheet(workbook, single);
+        }
+        if (pc.FirewallProfiles.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteFirewallProfileSheet(workbook, single);
+        }
+        if (pc.FirewallRules.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteFirewallRuleSheet(workbook, single);
+        }
+        if (pc.OptionalFeatures.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteOptionalFeatureSheet(workbook, single);
+        }
+        if (pc.UserProfiles.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteUserProfileSheet(workbook, single);
+        }
+        if (pc.Disks.Count > 0 || pc.Partitions.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteDiskPartitionSheet(workbook, single);
+        }
+        if (pc.WiFiProfiles.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteWiFiProfileSheet(workbook, single);
+        }
+        if (pc.RestorePoints.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteRestorePointSheet(workbook, single);
+        }
+        if (pc.WindowsUpdates.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteWindowsUpdateSheet(workbook, single);
+        }
+        if (pc.UnknownSections.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteUnknownSectionSheets(workbook, single);
+        }
+
+        workbook.SaveAs(detailFilePath);
+    }
+
+    /// <summary>PC 詳細ファイル名を生成。衝突時は serial 先頭 6 文字、それでも衝突なら連番。</summary>
+    private static string GetPcDetailFileName(PcEvidence pc, HashSet<string> usedNames)
+    {
+        var pcSeg = SanitizeFileNameSegment(pc.PcName);
+        var dateSeg = SanitizeFileNameSegment(pc.CollectionDate);
+        var baseName = $"{pcSeg}_{dateSeg}";
+        var name = $"{baseName}.xlsx";
+
+        if (usedNames.Add(name)) return name;
+
+        var serialFrag = string.IsNullOrEmpty(pc.SerialNumber)
+            ? "noserial"
+            : pc.SerialNumber.Length >= 6 ? pc.SerialNumber[..6] : pc.SerialNumber;
+        serialFrag = SanitizeFileNameSegment(serialFrag);
+        var serialName = $"{baseName}_{serialFrag}.xlsx";
+        if (usedNames.Add(serialName)) return serialName;
+
+        for (var counter = 2; ; counter++)
+        {
+            var counterName = $"{baseName}_{serialFrag}_{counter}.xlsx";
+            if (usedNames.Add(counterName)) return counterName;
+        }
+    }
+
+    /// <summary>Windows ファイル名禁則文字を除去。</summary>
+    private static string SanitizeFileNameSegment(string name)
+    {
+        var invalid = new[] { '\\', '/', '*', '?', ':', '[', ']', '"', '<', '>', '|' };
+        return string.Concat(name.Where(c => !invalid.Contains(c)));
+    }
+
+    /// <summary>この PC が詳細ファイル生成対象のデータ (N 行/PC になるシート群) を持つか。</summary>
+    private static bool HasAnyDetailData(PcEvidence pc, ExcelExportOptions? options)
+    {
+        return options?.VerificationReports?.ContainsKey(pc.PcName) == true
+            || options?.ChecklistResults?.ContainsKey(pc.PcName) == true
+            || options?.ExportHistories?.ContainsKey(pc.PcName) == true
+            || options?.BaselineReports?.ContainsKey(pc.PcName) == true
+            || pc.LocalUsers.Count > 0 || pc.LocalGroups.Count > 0
+            || pc.FirewallProfiles.Count > 0
+            || pc.FirewallRules.Count > 0
+            || pc.OptionalFeatures.Count > 0
+            || pc.UserProfiles.Count > 0
+            || pc.Disks.Count > 0 || pc.Partitions.Count > 0
+            || pc.WiFiProfiles.Count > 0
+            || pc.RestorePoints.Count > 0
+            || pc.WindowsUpdates.Count > 0
+            || pc.UnknownSections.Count > 0;
     }
 
     // ================================================================
@@ -350,12 +417,20 @@ public sealed class ExcelExportService : IExcelExportService
     private static void WriteMainDataRow(
         IXLWorksheet ws, int row, PcEvidence pc,
         int maxNicCount, List<string> driveLetters,
-        ExcelExportOptions? options)
+        ExcelExportOptions? options,
+        string? detailRelativePath)
     {
         var col = 1;
 
-        // 計画 PC 名 + 実 PC 名 (rename 成否の可視化用に常に併記)
-        ws.Cell(row, col++).Value = pc.PcName;
+        // 計画 PC 名 (詳細ファイルがあれば hyperlink を張る) + 実 PC 名併記
+        var pcNameCell = ws.Cell(row, col++);
+        pcNameCell.Value = pc.PcName;
+        if (detailRelativePath is not null)
+        {
+            pcNameCell.SetHyperlink(new XLHyperlink(detailRelativePath));
+            pcNameCell.Style.Font.Underline = XLFontUnderlineValues.Single;
+            pcNameCell.Style.Font.FontColor = XLColor.FromHtml("#1565C0");
+        }
         var actualCell = ws.Cell(row, col++);
         actualCell.Value = pc.ActualComputerNameDisplay;
         if (pc.HasPcNameMismatch)
@@ -528,15 +603,16 @@ public sealed class ExcelExportService : IExcelExportService
     {
         var ws = workbook.Worksheets.Add("チェックリスト");
 
-        // ヘッダー
+        // ヘッダー (Verified 列は kernel 2.x で新設、Result の右に挿入)
         SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 2, "全体判定", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 3, "#", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 4, "モジュール名", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 5, "カテゴリ", ChecklistHeaderBg);
         SetHeaderCell(ws, 1, 6, "結果", ChecklistHeaderBg);
-        SetHeaderCell(ws, 1, 7, "実行時刻", ChecklistHeaderBg);
-        SetHeaderCell(ws, 1, 8, "メッセージ", ChecklistHeaderBg);
+        SetHeaderCell(ws, 1, 7, "ベリファイ", ChecklistHeaderBg);
+        SetHeaderCell(ws, 1, 8, "実行時刻", ChecklistHeaderBg);
+        SetHeaderCell(ws, 1, 9, "メッセージ", ChecklistHeaderBg);
 
         var row = 2;
         foreach (var pc in pcEvidences)
@@ -545,7 +621,6 @@ public sealed class ExcelExportService : IExcelExportService
 
             if (result.ModuleItems.Count == 0)
             {
-                // モジュール結果がない場合でも全体判定だけ出力
                 ws.Cell(row, 1).Value = pc.PcNameDisplay;
                 ws.Cell(row, 2).Value = result.OverallStatus;
                 ApplyStatusColor(ws.Cell(row, 2), result.OverallStatus);
@@ -564,13 +639,16 @@ public sealed class ExcelExportService : IExcelExportService
                 var statusCell = ws.Cell(row, 6);
                 statusCell.Value = module.Status;
                 ApplyStatusColor(statusCell, module.Status);
-                ws.Cell(row, 7).Value = module.Time;
-                ws.Cell(row, 8).Value = module.Message;
+                var verifiedCell = ws.Cell(row, 7);
+                verifiedCell.Value = module.VerifiedStatus;
+                ApplyStatusColor(verifiedCell, module.VerifiedStatus);
+                ws.Cell(row, 8).Value = module.Time;
+                ws.Cell(row, 9).Value = module.Message;
                 row++;
             }
         }
 
-        ApplyStyles(ws, row - 2, 8);
+        ApplyStyles(ws, row - 2, 9);
     }
 
     // ================================================================
@@ -1452,7 +1530,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static void ApplyStatusColor(IXLCell cell, string status)
     {
         var upper = status.ToUpperInvariant();
-        if (upper is "OK" or "SUCCESS" or "MATCH")
+        if (upper is "OK" or "SUCCESS" or "MATCH" or "PASS")
         {
             cell.Style.Font.FontColor = MatchFont;
         }
@@ -1461,7 +1539,7 @@ public sealed class ExcelExportService : IExcelExportService
             cell.Style.Font.FontColor = MismatchFont;
             cell.Style.Font.Bold = true;
         }
-        else if (upper is "SKIP" or "SKIPPED")
+        else if (upper is "SKIP" or "SKIPPED" or "-" or "NOTRUN")
         {
             cell.Style.Font.FontColor = XLColor.Gray;
         }

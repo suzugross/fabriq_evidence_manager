@@ -65,6 +65,13 @@ public sealed class ChecklistModuleItem
     /// <summary>結果 (例: "OK", "NG", "Skip")</summary>
     public string Status { get; init; } = string.Empty;
 
+    /// <summary>
+    /// ベリファイステータス (例: "PASS", "FAIL", "-")。
+    /// チェックリスト HTML の Verified 列 (Result の隣に追加された新項目) を保持する。
+    /// 未実行モジュールは "-" や "notrun"。
+    /// </summary>
+    public string VerifiedStatus { get; init; } = string.Empty;
+
     /// <summary>実行時刻</summary>
     public string Time { get; init; } = string.Empty;
 

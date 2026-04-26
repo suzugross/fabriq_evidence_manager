@@ -173,4 +173,7 @@ public static class EvidenceConstants
 
     /// <summary>列幅自動調整の上限値</summary>
     public const double ExcelMaxColumnWidth = 55;
+
+    /// <summary>PC 個別詳細 Excel を格納するサブディレクトリ名 (main ファイルと同階層に作成)</summary>
+    public const string PcDetailsSubdirName = "pc_details";
 }
