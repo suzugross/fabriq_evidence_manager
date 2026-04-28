@@ -1,0 +1,24 @@
+
+========================================
+Security Baseline
+========================================
+---- TPM ----
+(Get-Tpm not available: TPM driver not loaded)
+
+---- Secure Boot ----
+(Secure Boot status unavailable - legacy BIOS / unsupported: Cmdlet not supported on this platform.)
+
+---- Virtualization-Based Security (Win32_DeviceGuard) ----
+VirtualizationBasedSecurityStatus:            Not running (0)
+SecurityServicesRunning:
+SecurityServicesConfigured:
+CodeIntegrityPolicyEnforcementStatus:         Off (0)
+UsermodeCodeIntegrityPolicyEnforcementStatus: Off (0)
+AvailableSecurityProperties:
+RequiredSecurityProperties:
+
+---- LSA Protection (RunAsPPL) ----
+RunAsPPL:             Off (registry value absent)
+
+---- BIOS / Firmware ----
+(Win32_BIOS query failed: Access denied.)

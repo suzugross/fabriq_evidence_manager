@@ -355,6 +355,38 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
+                        <!-- Windows ライセンス認証 (M11: 監査用) -->
+                        <DataGridTextColumn Header="Win 認証"
+                                            Binding="{Binding WindowsLicenseStatusDisplay}"
+                                            MinWidth="80"
+                                            Width="SizeToCells">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Padding" Value="6,2"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Background"
+                                            Value="{Binding WindowsLicenseStatusDisplay,
+                                                            Converter={StaticResource LicenseStatusToBg}}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Office ライセンス認証 (M11: 監査用) -->
+                        <DataGridTextColumn Header="Office 認証"
+                                            Binding="{Binding OfficeLicenseStatusDisplay}"
+                                            MinWidth="110"
+                                            Width="SizeToCells">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Padding" Value="6,2"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Background"
+                                            Value="{Binding OfficeLicenseStatusDisplay,
+                                                            Converter={StaticResource LicenseStatusToBg}}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
                         <!-- 検出状況 -->
                         <DataGridTextColumn Header="検出エビデンス"
                                             Binding="{Binding DetectedItems}"

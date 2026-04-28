@@ -68,6 +68,22 @@
 
                         <Border BorderBrush="#A4A8AD" BorderThickness="0,1,0,0" Margin="0,8,0,4"/>
 
+                        <TextBlock Text="ライセンス認証 (§21 / §22)"
+                                   FontSize="10" FontWeight="SemiBold"
+                                   Foreground="#777777"
+                                   Margin="0,4,0,2"/>
+                        <CheckBox Content="Windows ライセンス認証 (未取得・未認証を警告)"
+                                  IsChecked="{Binding CheckOptions.CheckWindowsLicense}"
+                                  Margin="0,2"/>
+                        <CheckBox Content="Office インストール (未取得・未インストールを警告)"
+                                  IsChecked="{Binding CheckOptions.CheckOfficeInstalled}"
+                                  Margin="0,2"/>
+                        <CheckBox Content="Office ライセンス認証 (認証失敗を警告 / サインイン待ちを要確認)"
+                                  IsChecked="{Binding CheckOptions.CheckOfficeLicense}"
+                                  Margin="0,2"/>
+
+                        <Border BorderBrush="#A4A8AD" BorderThickness="0,1,0,0" Margin="0,8,0,4"/>
+
                         <TextBlock Text="hostlist 突合の調整"
                                    FontSize="10" FontWeight="SemiBold"
                                    Foreground="#777777"

@@ -156,6 +156,13 @@ public partial class MainWindowViewModel : ObservableObject
             catch { /* 判定失敗時はスキップ */ }
         }
 
+        // Office サインイン待ち (CheckOfficeLicense ON のとき、verdict=Partial を要確認)
+        if (CheckOptions.CheckOfficeLicense
+            && pc.OfficeLicenseEvaluation == OfficeLicenseEvaluation.SignInPending)
+        {
+            cautions.Add("Officeサインイン待ち");
+        }
+
         // ベースライン突合 (全カテゴリ: 実行サマリ + SystemInfo + チェックリスト)
         if (_baselineService.IsLoaded)
         {

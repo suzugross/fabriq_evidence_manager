@@ -1,0 +1,52 @@
+
+========================================
+Office License / Activation Status
+========================================
+---- Office Click-to-Run Configuration (registry) ----
+ProductReleaseIds:     O365BusinessRetail
+VersionToReport:       16.0.19929.20090
+Platform:              x64
+CDNBaseUrl:            http://officecdn.microsoft.com/pr/492350f6-3a01-4f97-b9c0-c7c6ddf67d60
+UpdateChannel:         http://officecdn.microsoft.com/pr/492350f6-3a01-4f97-b9c0-c7c6ddf67d60
+AudienceData:          Production::CC
+ClientCulture:         ja-jp
+DetectedAsSubscription:True
+
+---- OSPP.vbs path ----
+C:\Program Files\Microsoft Office\root\Office16\OSPP.vbs
+
+---- cscript OSPP.vbs /dstatus (raw) ----
+  ---Processing--------------------------
+  ---------------------------------------
+  PRODUCT ID: 00265-60000-00004-AA744
+  SKU ID: 3d0631e3-1091-416d-92a5-42f84a86d868
+  LICENSE NAME: Office 16, Office16O365BusinessR_Grace edition
+  LICENSE DESCRIPTION: Office 16, RETAIL(Grace) channel
+  BETA EXPIRATION: 1601/01/01
+  LICENSE STATUS:  ---NOTIFICATIONS---
+  ERROR CODE: 0xC004F009
+  ERROR DESCRIPTION: The Software Licensing Service reported that the grace period expired.
+  Last 5 characters of installed product key: 3RQ6B
+  ---------------------------------------
+  ---------------------------------------
+  ---Exiting-----------------------------
+
+
+---- vNext Per-User License Files ----
+Scanning all user profiles under C:\Users ...
+
+vNext files found: 0 across 3 user profile(s) scanned
+  -> 22_OfficeVnextLicenses.csv (0 row(s))
+
+---- INTERPRETATION ----
+ProductReleaseIds (C2R):     O365BusinessRetail
+Detected as subscription:    True
+OSPP shows Grace/Notify:     True
+vNext licenses (any status): 0
+vNext Provisioned:           0
+
+  NOTE: OSPP NOTIFICATIONS / Grace expired is EXPECTED on M365 subscription.
+        OSPP is the legacy path and is not authoritative for subscription editions.
+        Authoritative source: per-user vNext license file.
+  CONCLUSION: M365 subscription installed but no Provisioned vNext license found.
+              End-user may not have signed in yet (typical at kitting time).

@@ -130,7 +130,10 @@ public class BaselineServiceTests
     {
         var winParser = new WindowsLicenseParserService();
         var officeParser = new OfficeLicenseParserService();
-        var parser = new EvidenceParserService(winParser, officeParser);
+        var sbParser = new SecurityBaselineParserService();
+        var certParser = new CertificatesParserService();
+        var batteryParser = new BatteryReportParserService();
+        var parser = new EvidenceParserService(winParser, officeParser, sbParser, certParser, batteryParser);
         var checklistParser = new ChecklistParserService();
 
         var comparators = new IBaselineComparator[]

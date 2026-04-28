@@ -3,9 +3,10 @@ using System.Collections.Generic;
 namespace FabriqEvidenceManager.Models;
 
 /// <summary>
-/// 22_OfficeLicense.txt のパース結果を表す集約モデル。
-/// evidence_config.ps1 §22 が出力する 2〜4 ブロック構成
-/// (Click-to-Run config / OSPP path / OSPP /dstatus raw) に対応。
+/// 22_OfficeLicense.txt と 22_OfficeVnextLicenses.csv のパース結果を表す集約モデル。
+/// evidence_config.ps1 §22 (v1.5.0+) が出力する 4 ブロック構成
+/// (22a Click-to-Run config / 22b OSPP path+/dstatus raw / 22c vNext per-user /
+/// 22d INTERPRETATION) に対応。
 /// </summary>
 public sealed class OfficeLicenseData
 {
@@ -34,6 +35,38 @@ public sealed class OfficeLicenseData
     /// cscript OSPP.vbs /dstatus の raw 出力（インデント込み・空可）。
     /// </summary>
     public string OsppDstatusRaw { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 22_OfficeVnextLicenses.csv のパース結果。CSV 不在時は空配列。
+    /// (v1.5.0+ §22c)
+    /// </summary>
+    public IReadOnlyList<OfficeVnextLicenseEntry> VnextEntries { get; init; } = [];
+
+    /// <summary>
+    /// 22a Click-to-Run の "DetectedAsSubscription:" 行 (= Test-OfficeSubscriptionSku 結果)。
+    /// 旧 evidence (v1.4 以前) または C2R 未検出時は null。
+    /// </summary>
+    public bool? IsSubscriptionDetected { get; init; }
+
+    /// <summary>
+    /// 22d INTERPRETATION の "OSPP shows Grace/Notify:" 行。
+    /// 旧 evidence (INTERPRETATION ブロック不在) では null。
+    /// </summary>
+    public bool? OsppShowsGrace { get; init; }
+
+    /// <summary>
+    /// 22d INTERPRETATION の "CONCLUSION:" 行 (接頭辞除去後の本文)。
+    /// INTERPRETATION ブロック不在時は null。
+    /// 例: "LICENSED (M365 subscription, 2 Provisioned vNext license(s))."
+    /// </summary>
+    public string? InterpretationConclusion { get; init; }
+
+    /// <summary>
+    /// 22d INTERPRETATION の "vNext Provisioned:" 行 (Status=Provisioned の件数)。
+    /// INTERPRETATION ブロック不在時は null。VnextEntries.Count(e =&gt; e.IsProvisioned) と
+    /// 一致するはずだが、二重ソースで保持し evidence の真値を優先する。
+    /// </summary>
+    public int? ProvisionedCount { get; init; }
 }
 
 /// <summary>

@@ -27,6 +27,9 @@ public sealed class ExcelExportService : IExcelExportService
     // 固定列数 (計画PC名, 実PC名, シリアル番号, SNソース, 収集日, 突合判定)
     private const int FixedColumnCount = 6;
 
+    // M14: バッテリ列数 (Health % / Design / FullCharge)
+    private const int BatterySubColumnCount = 3;
+
     // NIC1列あたりのサブ列数 (MAC, アダプタ, 接続名)
     private const int NicSubColumnCount = 3;
 
@@ -46,6 +49,7 @@ public sealed class ExcelExportService : IExcelExportService
     // ステータス色
     private static readonly XLColor MatchBg = XLColor.FromHtml("#E2EFDA");       // 薄緑
     private static readonly XLColor MismatchBg = XLColor.FromHtml("#FCE4EC");    // 薄赤
+    private static readonly XLColor WarningBg = XLColor.FromHtml("#FFF8E1");     // 薄黄: Partial / 要確認 (M11)
     private static readonly XLColor InfoBg = XLColor.FromHtml("#F5F5F5");        // 薄グレー: 情報行 (Office 未インストール等)
     private static readonly XLColor MismatchFont = XLColor.FromHtml("#C62828");  // 赤文字
     private static readonly XLColor MatchFont = XLColor.FromHtml("#2E7D32");     // 緑文字
@@ -93,6 +97,7 @@ public sealed class ExcelExportService : IExcelExportService
         var totalColumns = FixedColumnCount
                            + maxNicCount * NicSubColumnCount
                            + allDriveLetters.Count * DriveSubColumnCount
+                           + BatterySubColumnCount
                            + 1;   // 管理者メモ列 (末尾)
 
         // ===== STEP 1: PC -> 詳細ファイル相対パスを pre-compute =====
@@ -179,6 +184,17 @@ public sealed class ExcelExportService : IExcelExportService
             cancellationToken.ThrowIfCancellationRequested();
             WriteOfficeLicenseSheet(workbook, pcEvidences);
         }
+
+        // ---- Sheet 7: セキュリティベースライン (1 行/PC) ----
+        if (pcEvidences.Any(pc => pc.SecurityBaseline is not null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteSecurityBaselineSheet(workbook, pcEvidences);
+        }
+
+        // 証明書 (§25) は N 行/PC のため main ではなく pc_details/ 側に出力する
+        // (M13 当初は main にフラット集約していたが、フリート規模で行数が膨大になるため
+        // 他の N 行データと同じ流派に揃えた)。
 
         workbook.SaveAs(outputFilePath);
         return Task.CompletedTask;
@@ -293,6 +309,11 @@ public sealed class ExcelExportService : IExcelExportService
             cancellationToken.ThrowIfCancellationRequested();
             WriteWindowsUpdateSheet(workbook, single);
         }
+        if (pc.Certificates.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteCertificatesSheet(workbook, single);
+        }
         if (pc.UnknownSections.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -349,6 +370,7 @@ public sealed class ExcelExportService : IExcelExportService
             || pc.WiFiProfiles.Count > 0
             || pc.RestorePoints.Count > 0
             || pc.WindowsUpdates.Count > 0
+            || pc.Certificates.Count > 0
             || pc.UnknownSections.Count > 0;
     }
 
@@ -382,6 +404,11 @@ public sealed class ExcelExportService : IExcelExportService
             SetHeaderCell(ws, headerRow, col++, $"{drive}ドライブ_キーID", KeyHeaderBg);
             SetHeaderCell(ws, headerRow, col++, $"{drive}ドライブ_回復キー", KeyHeaderBg);
         }
+
+        // バッテリ列 (M14: 全 PC 共通 3 列、デスクトップは N/A)
+        SetHeaderCell(ws, headerRow, col++, "バッテリ健全性 (%)", LicenseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "設計容量 (mWh)", LicenseHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "満充電容量 (mWh)", LicenseHeaderBg);
 
         // 管理者メモ列 (末尾固定、wrap text)
         SetHeaderCell(ws, headerRow, col++, "管理者メモ", BaseHeaderBg);
@@ -575,10 +602,59 @@ public sealed class ExcelExportService : IExcelExportService
             }
         }
 
+        // バッテリ列 (M14: 健全性 % / 設計 mWh / 満充電 mWh)
+        WriteBatteryCells(ws, row, col, pc.BatteryReport);
+        col += BatterySubColumnCount;
+
         // 管理者メモ (末尾、wrap text、32,767 文字超は truncate)
         var memoCell = ws.Cell(row, col++);
         memoCell.Value = TruncateForCell(pc.Memo?.Text);
         memoCell.Style.Alignment.WrapText = true;
+    }
+
+    /// <summary>
+    /// PC情報一覧シートのバッテリ 3 列を書き込む (M14)。
+    /// 受入検査基準着色: &gt;= 95% 緑 / 90-95% 黄 / &lt; 90% 赤 / Battery 非搭載 グレー N/A。
+    /// </summary>
+    private static void WriteBatteryCells(IXLWorksheet ws, int row, int colStart, BatteryReportData? battery)
+    {
+        var healthCell = ws.Cell(row, colStart);
+        var designCell = ws.Cell(row, colStart + 1);
+        var fullCell = ws.Cell(row, colStart + 2);
+
+        if (battery is null)
+        {
+            // デスクトップ等で §26 が Skipped → 3 列まとめて N/A
+            WriteNa(healthCell);
+            WriteNa(designCell);
+            WriteNa(fullCell);
+            return;
+        }
+
+        if (battery.HealthPercent.HasValue)
+        {
+            healthCell.Value = battery.HealthPercent.Value;
+            healthCell.Style.NumberFormat.Format = "0.0";
+            var pct = battery.HealthPercent.Value;
+            var level = pct >= 95 ? AuditLevel.Good
+                : pct >= 90 ? AuditLevel.Warning
+                : AuditLevel.Bad;
+            ApplyCellAuditColor(healthCell, level);
+        }
+        else
+        {
+            WriteNa(healthCell);
+        }
+
+        if (battery.DesignCapacityMwh.HasValue)
+            designCell.Value = battery.DesignCapacityMwh.Value;
+        else
+            WriteNa(designCell);
+
+        if (battery.FullChargeCapacityMwh.HasValue)
+            fullCell.Value = battery.FullChargeCapacityMwh.Value;
+        else
+            WriteNa(fullCell);
     }
 
     // ================================================================
@@ -1649,15 +1725,21 @@ public sealed class ExcelExportService : IExcelExportService
     // Officeライセンス (§22)
     // ================================================================
 
+    /// <summary>Officeライセンスシート列数 (M11: 18 → 23 列、新規 5 列を 5-9 列目に挿入)</summary>
+    private const int OfficeLicenseSheetColumns = 23;
+
     private static void WriteOfficeLicenseSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
     {
         var ws = workbook.Worksheets.Add("Officeライセンス");
         ws.TabColor = LicenseHeaderBg;
 
+        // M11: vNext サマリ列 (5-9) を OSPP 詳細 (17-23) の前に挿入。
+        // Verdict は manifest §22 status を権威とし、再判定はしない。
         var headers = new[]
         {
             "PC名 (計画|実)", "シリアル番号", "収集日",
             "Office インストール状態",
+            "SubscriptionType", "Verdict", "Conclusion", "LicensedUsers", "TenantId",
             "C2R ProductReleaseIds", "C2R バージョン", "C2R Platform",
             "C2R UpdateChannel", "C2R AudienceData", "C2R ClientCulture",
             "OSPP パス",
@@ -1673,24 +1755,19 @@ public sealed class ExcelExportService : IExcelExportService
             var lic = pc.OfficeLicense;
             if (lic is null) continue;
 
-            if (!lic.IsOfficeInstalled)
-            {
-                WriteOfficeLicenseRow(ws, row, pc, lic, product: null);
-                row++;
-                continue;
-            }
+            var verdict = pc.Manifest?.Sections.FirstOrDefault(s => s.Id == "22")?.Status;
 
-            if (lic.Products.Count == 0)
+            if (!lic.IsOfficeInstalled || lic.Products.Count == 0)
             {
-                // C2R はあるが OSPP /dstatus なし or 製品ブロック未検出
-                WriteOfficeLicenseRow(ws, row, pc, lic, product: null);
+                // 未インストール / C2R あり OSPP 製品ブロック空 のいずれも 1 行
+                WriteOfficeLicenseRow(ws, row, pc, lic, product: null, verdict);
                 row++;
                 continue;
             }
 
             foreach (var product in lic.Products)
             {
-                WriteOfficeLicenseRow(ws, row, pc, lic, product);
+                WriteOfficeLicenseRow(ws, row, pc, lic, product, verdict);
                 row++;
             }
         }
@@ -1700,51 +1777,356 @@ public sealed class ExcelExportService : IExcelExportService
 
     private static void WriteOfficeLicenseRow(
         IXLWorksheet ws, int row, PcEvidence pc,
-        OfficeLicenseData lic, OfficeProductLicense? product)
+        OfficeLicenseData lic, OfficeProductLicense? product, SectionStatus? verdict)
     {
         ws.Cell(row, 1).Value = pc.PcNameDisplay;
         ws.Cell(row, 2).Value = pc.SerialNumber;
         ws.Cell(row, 3).Value = pc.CollectionDate;
         ws.Cell(row, 4).Value = lic.IsOfficeInstalled ? "インストール済み" : "未インストール";
 
+        // ---- 5-9: M11 vNext サマリブロック ----
+        ws.Cell(row, 5).Value = ResolveSubscriptionType(lic);
+        ws.Cell(row, 6).Value = verdict?.ToString() ?? "(manifest 不在)";
+        ws.Cell(row, 7).Value = lic.InterpretationConclusion ?? string.Empty;
+        ws.Cell(row, 8).Value = string.Join(
+            ", ",
+            lic.VnextEntries.Where(e => e.IsProvisioned).Select(e => e.UserProfile));
+        ws.Cell(row, 9).Value = lic.VnextEntries
+            .FirstOrDefault(e => e.IsProvisioned && !string.IsNullOrEmpty(e.TenantId))
+            ?.TenantId ?? string.Empty;
+
+        // ---- 10-15: C2R 詳細 ----
         var c2r = lic.ClickToRun;
         if (c2r is not null)
         {
-            ws.Cell(row, 5).Value = c2r.ProductReleaseIds;
-            ws.Cell(row, 6).Value = c2r.VersionToReport;
-            ws.Cell(row, 7).Value = c2r.Platform;
-            ws.Cell(row, 8).Value = c2r.UpdateChannel;
-            ws.Cell(row, 9).Value = c2r.AudienceData;
-            ws.Cell(row, 10).Value = c2r.ClientCulture;
+            ws.Cell(row, 10).Value = c2r.ProductReleaseIds;
+            ws.Cell(row, 11).Value = c2r.VersionToReport;
+            ws.Cell(row, 12).Value = c2r.Platform;
+            ws.Cell(row, 13).Value = c2r.UpdateChannel;
+            ws.Cell(row, 14).Value = c2r.AudienceData;
+            ws.Cell(row, 15).Value = c2r.ClientCulture;
         }
 
-        ws.Cell(row, 11).Value = lic.OsppPath ?? string.Empty;
+        // ---- 16: OSPP パス ----
+        ws.Cell(row, 16).Value = lic.OsppPath ?? string.Empty;
 
+        // ---- 17-23: OSPP 製品詳細 ----
         if (product is not null)
         {
-            ws.Cell(row, 12).Value = product.LicenseName;
-            ws.Cell(row, 13).Value = product.LicenseDescription;
-            ws.Cell(row, 14).Value = product.LicenseStatusText;
-            ws.Cell(row, 15).Value = product.LastFiveCharsProductKey;
-            ws.Cell(row, 16).Value = product.ErrorCode;
-            ws.Cell(row, 17).Value = product.RemainingGrace;
-            ws.Cell(row, 18).Value = product.KmsMachineName;
+            ws.Cell(row, 17).Value = product.LicenseName;
+            ws.Cell(row, 18).Value = product.LicenseDescription;
+            ws.Cell(row, 19).Value = product.LicenseStatusText;
+            ws.Cell(row, 20).Value = product.LastFiveCharsProductKey;
+            ws.Cell(row, 21).Value = product.ErrorCode;
+            ws.Cell(row, 22).Value = product.RemainingGrace;
+            ws.Cell(row, 23).Value = product.KmsMachineName;
         }
 
-        // 着色:
-        //   Office 未インストール        → グレー (情報行)
-        //   インストール済み + 非 Licensed → 赤 (要監査)
-        //   インストール済み + Licensed    → 通常背景
-        var range = ws.Range(row, 1, row, 18);
-        if (!lic.IsOfficeInstalled)
+        ApplyOfficeLicenseRowColor(ws, row, lic, product, verdict);
+    }
+
+    /// <summary>
+    /// 行全体に着色する。manifest §22 status が真値、null (旧 evidence) のみ
+    /// product.IsLicensed をフォールバック判定に使う。
+    /// </summary>
+    private static void ApplyOfficeLicenseRowColor(
+        IXLWorksheet ws, int row, OfficeLicenseData lic,
+        OfficeProductLicense? product, SectionStatus? verdict)
+    {
+        var range = ws.Range(row, 1, row, OfficeLicenseSheetColumns);
+
+        if (verdict is null)
         {
-            range.Style.Fill.BackgroundColor = InfoBg;
+            // 旧 evidence: manifest §22 不在。OSPP 製品の Licensed/非 Licensed で従来判定
+            if (!lic.IsOfficeInstalled)
+            {
+                range.Style.Fill.BackgroundColor = InfoBg;
+            }
+            else if (product is null || !product.IsLicensed)
+            {
+                range.Style.Fill.BackgroundColor = MismatchBg;
+                range.Style.Font.FontColor = MismatchFont;
+            }
+            return;
         }
-        else if (product is null || !product.IsLicensed)
+
+        switch (verdict.Value)
         {
-            range.Style.Fill.BackgroundColor = MismatchBg;
-            range.Style.Font.FontColor = MismatchFont;
+            case SectionStatus.Failed:
+                range.Style.Fill.BackgroundColor = MismatchBg;
+                range.Style.Font.FontColor = MismatchFont;
+                break;
+
+            case SectionStatus.Partial:
+                range.Style.Fill.BackgroundColor = WarningBg;
+                break;
+
+            case SectionStatus.Success:
+                if (!lic.IsOfficeInstalled)
+                    range.Style.Fill.BackgroundColor = InfoBg;
+                else
+                    range.Style.Fill.BackgroundColor = MatchBg;
+                break;
+
+            case SectionStatus.Skipped:
+                range.Style.Font.FontColor = XLColor.Gray;
+                break;
         }
+    }
+
+    /// <summary>
+    /// SubscriptionType 列の表示文字列を算出する。
+    /// "M365 Subscription" / "Volume" / "Buy-once" / "Not installed" / "Unknown"。
+    /// </summary>
+    private static string ResolveSubscriptionType(OfficeLicenseData lic)
+    {
+        if (!lic.IsOfficeInstalled) return "Not installed";
+        if (lic.IsSubscriptionDetected is null) return "Unknown";
+        if (lic.IsSubscriptionDetected.Value) return "M365 Subscription";
+
+        var ids = lic.ClickToRun?.ProductReleaseIds ?? string.Empty;
+        return ids.Contains("Volume", StringComparison.OrdinalIgnoreCase)
+            ? "Volume"
+            : "Buy-once";
+    }
+
+    // ================================================================
+    // セキュリティベースライン (§23) — M12
+    // ================================================================
+
+    private const int SecurityBaselineSheetColumns = 10;
+
+    private static void WriteSecurityBaselineSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("セキュリティベースライン");
+        ws.TabColor = LicenseHeaderBg;
+
+        var headers = new[]
+        {
+            "PC名 (計画|実)",
+            "TPM Present", "TPM Ready",
+            "SecureBoot",
+            "VBS Status", "HVCI Running", "CodeIntegrity Enforcement",
+            "LSA RunAsPPL",
+            "BIOS Version", "BIOS Date",
+        };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], LicenseHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (pc.SecurityBaseline is null) continue;
+            WriteSecurityBaselineRow(ws, row, pc, pc.SecurityBaseline);
+            row++;
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    private static void WriteSecurityBaselineRow(
+        IXLWorksheet ws, int row, PcEvidence pc, SecurityBaselineData sb)
+    {
+        ws.Cell(row, 1).Value = pc.PcNameDisplay;
+
+        // ---- 2-3: TPM ----
+        WriteAuditableBool(ws.Cell(row, 2), sb.Tpm?.Present, badIfFalse: true);
+        WriteAuditableBool(ws.Cell(row, 3), sb.Tpm?.Ready, badIfFalse: true);  // Ready=false は赤 (M12 仕様)
+
+        // ---- 4: SecureBoot ----
+        WriteAuditableBool(ws.Cell(row, 4), sb.SecureBootEnabled, badIfFalse: false, warnIfFalse: true);
+
+        // ---- 5: VBS Status ----
+        if (sb.Vbs is null)
+        {
+            WriteNa(ws.Cell(row, 5));
+        }
+        else
+        {
+            ws.Cell(row, 5).Value = sb.Vbs.VbsStatusText;
+            if (string.Equals(sb.Vbs.VbsStatusText, "Not running", System.StringComparison.Ordinal))
+                ApplyCellAuditColor(ws.Cell(row, 5), AuditLevel.Warning);
+        }
+
+        // ---- 6: HVCI Running ----
+        if (sb.Vbs is null)
+            WriteNa(ws.Cell(row, 6));
+        else
+        {
+            ws.Cell(row, 6).Value = sb.Vbs.HvciRunning;
+            if (!sb.Vbs.HvciRunning) ApplyCellAuditColor(ws.Cell(row, 6), AuditLevel.Warning);
+        }
+
+        // ---- 7: CodeIntegrity Enforcement ----
+        if (sb.Vbs is null)
+            WriteNa(ws.Cell(row, 7));
+        else
+        {
+            ws.Cell(row, 7).Value = sb.Vbs.CodeIntegrityEnforcementText;
+            if (string.Equals(sb.Vbs.CodeIntegrityEnforcementText, "Off", System.StringComparison.Ordinal))
+                ApplyCellAuditColor(ws.Cell(row, 7), AuditLevel.Warning);
+        }
+
+        // ---- 8: LSA RunAsPPL ----
+        if (sb.Lsa is null)
+        {
+            WriteNa(ws.Cell(row, 8));
+        }
+        else
+        {
+            ws.Cell(row, 8).Value = sb.Lsa.RunAsPplRawText;
+            switch (sb.Lsa.RunAsPpl)
+            {
+                case LsaRunAsPplState.Off:
+                    ApplyCellAuditColor(ws.Cell(row, 8), AuditLevel.Bad);
+                    break;
+                case LsaRunAsPplState.OnWithUefiLock:
+                    ApplyCellAuditColor(ws.Cell(row, 8), AuditLevel.Good);
+                    break;
+                case LsaRunAsPplState.Unknown:
+                    ApplyCellAuditColor(ws.Cell(row, 8), AuditLevel.Na);
+                    break;
+                // On は通常 (着色なし)
+            }
+        }
+
+        // ---- 9-10: BIOS ----
+        if (sb.Bios is null)
+        {
+            WriteNa(ws.Cell(row, 9));
+            WriteNa(ws.Cell(row, 10));
+        }
+        else
+        {
+            ws.Cell(row, 9).Value = sb.Bios.SmbiosBiosVersion;
+            ws.Cell(row, 10).Value = sb.Bios.ReleaseDate;
+        }
+    }
+
+    /// <summary>
+    /// 監査用 bool セル書き込み + 着色。
+    /// null は "N/A" + グレー、false は (badIfFalse なら赤 / warnIfFalse なら黄)、true は通常。
+    /// </summary>
+    private static void WriteAuditableBool(IXLCell cell, bool? value, bool badIfFalse = false, bool warnIfFalse = false)
+    {
+        if (value is null)
+        {
+            WriteNa(cell);
+            return;
+        }
+        cell.Value = value.Value;
+        if (!value.Value)
+        {
+            if (badIfFalse) ApplyCellAuditColor(cell, AuditLevel.Bad);
+            else if (warnIfFalse) ApplyCellAuditColor(cell, AuditLevel.Warning);
+        }
+    }
+
+    private static void WriteNa(IXLCell cell)
+    {
+        cell.Value = "N/A";
+        ApplyCellAuditColor(cell, AuditLevel.Na);
+    }
+
+    private enum AuditLevel { Good, Warning, Bad, Na }
+
+    /// <summary>セル単位の監査着色 (M12: SecurityBaseline で導入)。</summary>
+    private static void ApplyCellAuditColor(IXLCell cell, AuditLevel level)
+    {
+        switch (level)
+        {
+            case AuditLevel.Good:
+                cell.Style.Fill.BackgroundColor = MatchBg;
+                cell.Style.Font.FontColor = MatchFont;
+                break;
+            case AuditLevel.Warning:
+                cell.Style.Fill.BackgroundColor = WarningBg;
+                break;
+            case AuditLevel.Bad:
+                cell.Style.Fill.BackgroundColor = MismatchBg;
+                cell.Style.Font.FontColor = MismatchFont;
+                cell.Style.Font.Bold = true;
+                break;
+            case AuditLevel.Na:
+                cell.Style.Font.FontColor = XLColor.Gray;
+                break;
+        }
+    }
+
+    // ================================================================
+    // 証明書 (§25) — M13
+    // ================================================================
+
+    private const int CertificatesSheetColumns = 12;
+
+    private static void WriteCertificatesSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("証明書");
+        ws.TabColor = LicenseHeaderBg;
+
+        var headers = new[]
+        {
+            "PC名 (計画|実)", "Store", "Subject", "Issuer", "Thumbprint",
+            "NotBefore", "NotAfter", "DaysToExpiry",
+            "HasPrivateKey", "EnhancedKeyUsageList", "FriendlyName", "SerialNumber",
+        };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], LicenseHeaderBg);
+
+        var today = System.DateTime.Today;
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var cert in pc.Certificates)
+            {
+                WriteCertificateRow(ws, row, pc, cert, today);
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    private static void WriteCertificateRow(
+        IXLWorksheet ws, int row, PcEvidence pc, CertificateEntry cert, System.DateTime today)
+    {
+        ws.Cell(row, 1).Value = pc.PcNameDisplay;
+        ws.Cell(row, 2).Value = cert.Store;
+        ws.Cell(row, 3).Value = cert.Subject;
+        ws.Cell(row, 4).Value = cert.Issuer;
+        ws.Cell(row, 5).Value = cert.Thumbprint;
+        if (cert.NotBefore.HasValue) ws.Cell(row, 6).Value = cert.NotBefore.Value;
+        if (cert.NotAfter.HasValue) ws.Cell(row, 7).Value = cert.NotAfter.Value;
+
+        // ---- 8: DaysToExpiry + 着色 ----
+        var days = cert.DaysToExpiry(today);
+        if (days.HasValue)
+        {
+            ws.Cell(row, 8).Value = days.Value;
+            var level = days.Value switch
+            {
+                < 0 => AuditLevel.Bad,           // 期限切れ
+                <= 30 => AuditLevel.Warning,     // オレンジ系警告に近い、ここでは黄
+                <= 90 => AuditLevel.Warning,     // 同上 (黄)
+                _ => AuditLevel.Good,            // 90+ は通常で十分だが視認性のため緑側
+            };
+            // 仕様: 期限切れ=赤 / 0〜30=オレンジ寄り / 30〜90=黄 / 90+=通常
+            // M12 の WarningBg (薄黄) を使い、期限切れだけ赤、それ以外は通常 or 黄。
+            if (level == AuditLevel.Bad)
+                ApplyCellAuditColor(ws.Cell(row, 8), AuditLevel.Bad);
+            else if (days.Value <= 90)
+                ApplyCellAuditColor(ws.Cell(row, 8), AuditLevel.Warning);
+        }
+        else
+        {
+            ws.Cell(row, 8).Value = "N/A";
+            ApplyCellAuditColor(ws.Cell(row, 8), AuditLevel.Na);
+        }
+
+        ws.Cell(row, 9).Value = cert.HasPrivateKey;
+        ws.Cell(row, 10).Value = cert.EnhancedKeyUsageList;
+        ws.Cell(row, 11).Value = cert.FriendlyName;
+        ws.Cell(row, 12).Value = cert.SerialNumber;
     }
 
     // ================================================================

@@ -29,7 +29,9 @@ public class SystemInfoComparatorTests
     }
 
     private static EvidenceParserService MakeParser()
-        => new(new WindowsLicenseParserService(), new OfficeLicenseParserService());
+        => new(new WindowsLicenseParserService(), new OfficeLicenseParserService(),
+               new SecurityBaselineParserService(), new CertificatesParserService(),
+               new BatteryReportParserService());
 
     private static PcEvidence MakePc(string name, string pcInfoDir)
     {

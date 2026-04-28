@@ -45,13 +45,22 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
 
     private readonly IWindowsLicenseParserService _windowsLicenseParser;
     private readonly IOfficeLicenseParserService _officeLicenseParser;
+    private readonly ISecurityBaselineParserService _securityBaselineParser;
+    private readonly ICertificatesParserService _certificatesParser;
+    private readonly IBatteryReportParserService _batteryReportParser;
 
     public EvidenceParserService(
         IWindowsLicenseParserService windowsLicenseParser,
-        IOfficeLicenseParserService officeLicenseParser)
+        IOfficeLicenseParserService officeLicenseParser,
+        ISecurityBaselineParserService securityBaselineParser,
+        ICertificatesParserService certificatesParser,
+        IBatteryReportParserService batteryReportParser)
     {
         _windowsLicenseParser = windowsLicenseParser;
         _officeLicenseParser = officeLicenseParser;
+        _securityBaselineParser = securityBaselineParser;
+        _certificatesParser = certificatesParser;
+        _batteryReportParser = batteryReportParser;
     }
 
     // ================================================================
@@ -128,7 +137,10 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             case "18": TryParseSingle(dir, section, "_DefenderStatus.txt", ParseDefenderStatus, v => pc.DefenderStatus = v); break;
             case "19": TryParseList(dir, section, "_WindowsUpdates.csv", ParseWindowsUpdates, pc.WindowsUpdates); break;
             case "21": TryParseSingle(dir, section, "_WindowsLicense.txt", _windowsLicenseParser.Parse, v => pc.WindowsLicense = v); break;
-            case "22": TryParseSingle(dir, section, "_OfficeLicense.txt", _officeLicenseParser.Parse, v => pc.OfficeLicense = v); break;
+            case "22": ApplyOfficeLicenseDetail(pc, dir, section); break;
+            case "23": TryParseSingle(dir, section, "_SecurityBaseline.txt", _securityBaselineParser.Parse, v => pc.SecurityBaseline = v); break;
+            case "25": TryParseList(dir, section, "_Certificates.csv", _certificatesParser.Parse, pc.Certificates); break;
+            case "26": TryParseSingle(dir, section, "_BatteryReport.html", _batteryReportParser.Parse, v => pc.BatteryReport = v); break;
             // 01/06/07/08/11/14/20: PopulateDetails で PcEvidence に直接格納する parse 対象なし
             //   (HostlistService / BaselineService / EvidenceVerificationService が on-demand で読む)
             default:
@@ -205,6 +217,35 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             warnings.Add("auto_capture未検出");
         if (options?.CheckChecklist != false && pc.ChecklistFilePath is null)
             warnings.Add("チェックリスト未検出");
+
+        // Windows ライセンス認証 (CheckWindowsLicense ON のとき、未取得・未認証ともに警告)
+        if (options?.CheckWindowsLicense != false)
+        {
+            if (pc.WindowsLicense is null)
+                warnings.Add("Windowsライセンス未取得");
+            else if (!pc.IsWindowsLicensed)
+                warnings.Add("Windowsライセンス未認証");
+        }
+
+        // Office インストール有無 (CheckOfficeInstalled ON: 未取得・未インストールが警告)
+        if (options?.CheckOfficeInstalled != false)
+        {
+            if (pc.OfficeLicense is null)
+                warnings.Add("Office情報未取得");
+            else if (!pc.OfficeLicense.IsOfficeInstalled)
+                warnings.Add("Office未インストール");
+        }
+
+        // Office ライセンス認証 (CheckOfficeLicense ON: 認証失敗のみ警告。Partial は Caution 側で扱う)
+        // CheckOfficeInstalled OFF + CheckOfficeLicense ON のとき未取得が漏れないように
+        // OfficeLicense null は CheckOfficeInstalled の条件でカバー済みのため、ここでは
+        // インストール済みのみ評価する。
+        if (options?.CheckOfficeLicense != false
+            && pc.OfficeLicense is { IsOfficeInstalled: true }
+            && pc.OfficeLicenseEvaluation == OfficeLicenseEvaluation.AuthFailed)
+        {
+            warnings.Add("Officeライセンス認証失敗");
+        }
 
         if (warnings.Count > 0)
         {
@@ -367,6 +408,33 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     /// §10 manifest dispatch 専用ヘルパ。
     /// CanonicalValue / Source / UUID / 全ソース trail を一括で PcEvidence に充填する。
     /// </summary>
+    /// <summary>
+    /// §22 Office License: 22_OfficeLicense.txt と 22_OfficeVnextLicenses.csv の
+    /// 両方を section.RegularFiles から発見して OfficeLicenseParserService に渡す。
+    /// CSV 不在時 (旧 evidence) は txt のみで動作 (パーサ側で空配列扱い)。
+    /// </summary>
+    private void ApplyOfficeLicenseDetail(PcEvidence pc, string dir, ManifestSection section)
+    {
+        var txtFile = section.RegularFiles.FirstOrDefault(
+            f => f.EndsWith("_OfficeLicense.txt", StringComparison.OrdinalIgnoreCase));
+        if (txtFile is null) return;
+        var txtPath = Path.Combine(dir, txtFile);
+        if (!File.Exists(txtPath)) return;
+
+        var csvFile = section.RegularFiles.FirstOrDefault(
+            f => f.EndsWith("_OfficeVnextLicenses.csv", StringComparison.OrdinalIgnoreCase));
+        var csvPath = csvFile is null ? null : Path.Combine(dir, csvFile);
+
+        try
+        {
+            pc.OfficeLicense = _officeLicenseParser.Parse(txtPath, csvPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Parse Skip] {txtPath}: {ex.Message}");
+        }
+    }
+
     private void ApplySerialNumberDetail(PcEvidence pc, string dir, ManifestSection section)
     {
         var fileName = section.RegularFiles.FirstOrDefault(

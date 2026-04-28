@@ -1,10 +1,14 @@
 <Application x:Class="FabriqEvidenceManager.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:FabriqEvidenceManager.Helpers"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <!-- Bool → Visibility 変換 -->
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- ライセンス状態テキスト → セル背景色 (M11+ 監査用) -->
+        <helpers:LicenseStatusToBackgroundConverter x:Key="LicenseStatusToBg"/>
 
         <!-- ============================================================ -->
         <!-- CentreCOM テーマ: Button (明るい筐体に馴染むパーツ風) -->

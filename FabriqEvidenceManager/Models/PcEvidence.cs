@@ -176,11 +176,125 @@ public sealed partial class PcEvidence : ObservableObject
 
     /// <summary>Windows ライセンス / アクティベーション状態 (evidence_config v1.3.0+ §21)</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsWindowsLicensed))]
+    [NotifyPropertyChangedFor(nameof(WindowsLicenseStatusDisplay))]
     private WindowsLicenseData? _windowsLicense;
 
     /// <summary>Office ライセンス / アクティベーション状態 (evidence_config v1.3.0+ §22)</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOfficeInstalled))]
+    [NotifyPropertyChangedFor(nameof(OfficeLicenseEvaluation))]
+    [NotifyPropertyChangedFor(nameof(OfficeLicenseStatusDisplay))]
     private OfficeLicenseData? _officeLicense;
+
+    /// <summary>セキュリティベースライン (evidence_config v1.4.0+ §23: TPM / SecureBoot / VBS / LSA / BIOS)</summary>
+    [ObservableProperty]
+    private SecurityBaselineData? _securityBaseline;
+
+    /// <summary>証明書一覧 (evidence_config v1.4.0+ §25: 4 ストア統合)</summary>
+    public List<CertificateEntry> Certificates { get; } = [];
+
+    /// <summary>バッテリレポート (evidence_config v1.4.0+ §26)。デスクトップ機など非搭載時 null。</summary>
+    [ObservableProperty]
+    private BatteryReportData? _batteryReport;
+
+    // ---- ライセンス判定プロパティ (DataGrid / 監査用) ----
+
+    /// <summary>
+    /// Windows がライセンス認証済みか。
+    /// Products に LicenseStatus=1 (Licensed) が 1 つでもあれば true。
+    /// WindowsLicense 自体が null (manifest 不在 / §21 Failed) の場合は false。
+    /// </summary>
+    public bool IsWindowsLicensed =>
+        WindowsLicense?.Products.Any(p => p.LicenseStatusCode == WindowsLicensingProduct.LicensedStatusCode) == true;
+
+    /// <summary>
+    /// DataGrid 用の Windows ライセンス状態テキスト。
+    /// "認証済" / "未認証" / "(未取得)"。
+    /// </summary>
+    public string WindowsLicenseStatusDisplay =>
+        WindowsLicense is null ? "(未取得)"
+            : IsWindowsLicensed ? "認証済"
+            : "未認証";
+
+    /// <summary>
+    /// Office がインストールされているか (Office 評価の前提条件)。
+    /// null = 未取得 (manifest §22 不在 / §22 Failed)。
+    /// </summary>
+    public bool? IsOfficeInstalled => OfficeLicense?.IsOfficeInstalled;
+
+    /// <summary>
+    /// Office ライセンスの監査評価結果 (DataGrid 表示と Caution/Warning 判定で共用)。
+    ///
+    /// 判定の権威ソース:
+    ///  - v1.5.0+ (INTERPRETATION ブロックあり) → manifest §22 verdict を権威。
+    ///    fabriq 側が C2R + OSPP + vNext を突合して Success/Partial/Failed を確定済み。
+    ///  - v1.4 以前 (INTERPRETATION ブロックなし) → manifest §22 status は単に
+    ///    「セクション収集が完了した」の意味しかなく、ライセンス実態を保証しない
+    ///    (v1.4 では VL+OSPP_Grace でも status=Success だった)。このため OSPP の
+    ///    IsLicensed と vNext IsProvisioned で個別判定する。
+    /// </summary>
+    public OfficeLicenseEvaluation OfficeLicenseEvaluation
+    {
+        get
+        {
+            var lic = OfficeLicense;
+            if (lic is null) return OfficeLicenseEvaluation.NotEvaluated;
+            if (!lic.IsOfficeInstalled) return OfficeLicenseEvaluation.NotInstalled;
+
+            // v1.5.0+ INTERPRETATION ブロックがある場合は manifest verdict を信頼
+            if (lic.InterpretationConclusion is not null)
+            {
+                var verdict = Manifest?.Sections.FirstOrDefault(s => s.Id == "22")?.Status;
+                return verdict switch
+                {
+                    SectionStatus.Success => OfficeLicenseEvaluation.Licensed,
+                    SectionStatus.Partial => OfficeLicenseEvaluation.SignInPending,
+                    SectionStatus.Failed  => OfficeLicenseEvaluation.AuthFailed,
+                    _ => OfficeLicenseEvaluation.AuthFailed,
+                };
+            }
+
+            // v1.4 以前: OSPP product / vNext で個別判定。
+            // (subscription 機が混じっていれば vNext Provisioned あり = Licensed、
+            //  VL/Retail なら OSPP の LICENSED ステータスのみ Licensed と認める)
+            if (lic.VnextEntries.Any(e => e.IsProvisioned)) return OfficeLicenseEvaluation.Licensed;
+            if (lic.Products.Any(p => p.IsLicensed)) return OfficeLicenseEvaluation.Licensed;
+            return OfficeLicenseEvaluation.AuthFailed;
+        }
+    }
+
+    /// <summary>
+    /// DataGrid 用の Office ライセンス状態テキスト。
+    /// "認証済" / "サインイン待ち" / "認証失敗" / "未インストール" / "(未取得)"。
+    /// </summary>
+    public string OfficeLicenseStatusDisplay => OfficeLicenseEvaluation switch
+    {
+        OfficeLicenseEvaluation.Licensed       => "認証済",
+        OfficeLicenseEvaluation.SignInPending  => "サインイン待ち",
+        OfficeLicenseEvaluation.AuthFailed     => "認証失敗",
+        OfficeLicenseEvaluation.NotInstalled   => "未インストール",
+        _                                      => "(未取得)",
+    };
+
+    /// <summary>
+    /// 30 日以内に有効期限を迎える証明書が存在するか。
+    /// 期限切れ済み (DaysToExpiry &lt; 0) と 0〜30 の両方を含む。NotAfter null は除外。
+    /// PC情報一覧シートの警告列で使用。
+    /// </summary>
+    public bool HasExpiringCertWithin30Days
+    {
+        get
+        {
+            var today = System.DateTime.Today;
+            foreach (var c in Certificates)
+            {
+                var d = c.DaysToExpiry(today);
+                if (d.HasValue && d.Value < 30) return true;
+            }
+            return false;
+        }
+    }
 
     /// <summary>
     /// pc_information/manifest.json のパース結果 (kernel/EVIDENCE_MANIFEST.md schemaVersion=1)。

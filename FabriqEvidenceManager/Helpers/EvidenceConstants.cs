@@ -165,6 +165,9 @@ public static class EvidenceConstants
         ["20"] = new("System TEMP Backup"),
         ["21"] = new("Windows License"),
         ["22"] = new("Office License"),
+        ["23"] = new("Security Baseline"),
+        ["25"] = new("Certificates"),
+        ["26"] = new("Battery Report"),
     };
 
     // ================================================================
