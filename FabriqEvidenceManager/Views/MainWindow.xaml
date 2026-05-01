@@ -258,7 +258,7 @@
                              + メモ有り PC には末尾に 📝 アイコン (HasMemo=true 時) -->
                         <DataGridTemplateColumn Header="計画 PC 名"
                                                 MinWidth="100"
-                                                Width="SizeToCells">
+                                                Width="110">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
@@ -281,7 +281,7 @@
                         <DataGridTextColumn Header="実 PC 名"
                                             Binding="{Binding ActualComputerNameDisplay}"
                                             MinWidth="100"
-                                            Width="SizeToCells">
+                                            Width="110">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="FontWeight" Value="SemiBold"/>
@@ -301,7 +301,7 @@
                         <DataGridTextColumn Header="シリアル"
                                             Binding="{Binding SerialNumberDisplay}"
                                             MinWidth="160"
-                                            Width="SizeToCells">
+                                            Width="180">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Padding" Value="4,2"/>
@@ -320,24 +320,24 @@
                         <DataGridTextColumn Header="収集日"
                                             Binding="{Binding CollectionDate}"
                                             MinWidth="90"
-                                            Width="SizeToCells"/>
+                                            Width="110"/>
 
                         <!-- イーサネットMAC -->
                         <DataGridTextColumn Header="MAC (イーサネット)"
                                             Binding="{Binding EthernetMac}"
                                             MinWidth="140"
-                                            Width="SizeToCells"/>
+                                            Width="150"/>
 
                         <!-- Wi-Fi MAC -->
                         <DataGridTextColumn Header="MAC (Wi-Fi)"
                                             Binding="{Binding WifiMac}"
                                             MinWidth="140"
-                                            Width="SizeToCells"/>
+                                            Width="150"/>
 
                         <!-- BitLocker (ドライブレター + 回復キー併記、ItemsControl で行毎レイアウト) -->
                         <DataGridTemplateColumn Header="BitLocker (回復キー)"
                                                 MinWidth="280"
-                                                Width="SizeToCells">
+                                                Width="300">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <ItemsControl ItemsSource="{Binding BitLockerKeys}" Margin="4,2">
@@ -359,7 +359,7 @@
                         <DataGridTextColumn Header="Win 認証"
                                             Binding="{Binding WindowsLicenseStatusDisplay}"
                                             MinWidth="80"
-                                            Width="SizeToCells">
+                                            Width="90">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Padding" Value="6,2"/>
@@ -375,7 +375,7 @@
                         <DataGridTextColumn Header="Office 認証"
                                             Binding="{Binding OfficeLicenseStatusDisplay}"
                                             MinWidth="110"
-                                            Width="SizeToCells">
+                                            Width="130">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Padding" Value="6,2"/>
@@ -391,10 +391,13 @@
                         <DataGridTextColumn Header="検出エビデンス"
                                             Binding="{Binding DetectedItems}"
                                             MinWidth="120"
-                                            Width="SizeToCells"/>
+                                            Width="160"/>
 
                         <!-- ステータス (警告 + 要確認メッセージ) -->
-                        <DataGridTemplateColumn Header="ステータス" Width="*">
+                        <!-- ステータス: 固定 px 化することで合計幅 > viewport 時に
+                             横スクロールが自動表示される。* (Star) だと残幅吸収で常に viewport 幅に
+                             張り付き、他列がはみ出ても見えなくなる症状を防ぐ。 -->
+                        <DataGridTemplateColumn Header="ステータス" Width="320" MinWidth="200">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Vertical" Margin="4,2">

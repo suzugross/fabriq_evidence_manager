@@ -577,7 +577,10 @@ public sealed class ExcelExportService : IExcelExportService
         pcNameCell.Value = pc.PcName;
         if (detailRelativePath is not null)
         {
-            pcNameCell.SetHyperlink(new XLHyperlink(detailRelativePath));
+            // ClosedXML の XLHyperlink(string) は文字列を内部セル参照と解釈してしまい
+            // Excel が現在シート名を prefix してリンクが壊れる。
+            // 外部ファイルへの相対リンクは Uri(..., UriKind.Relative) を渡す必要がある。
+            pcNameCell.SetHyperlink(new XLHyperlink(new Uri(detailRelativePath, UriKind.Relative)));
             pcNameCell.Style.Font.Underline = XLFontUnderlineValues.Single;
             pcNameCell.Style.Font.FontColor = XLColor.FromHtml("#1565C0");
         }
