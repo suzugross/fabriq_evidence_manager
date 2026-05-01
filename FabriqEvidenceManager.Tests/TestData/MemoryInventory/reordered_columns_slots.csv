@@ -1,0 +1,2 @@
+"DeviceLocator","BankLabel","SMBIOSMemoryType","FormFactor","Capacity_GB","Speed_MHz","ConfiguredClockSpeed_MHz","ConfiguredVoltage_mV","DataWidth_bit","TotalWidth_bit","Manufacturer","PartNumber","SerialNumber"
+"DIMM_A1","BANK 0","DDR5","DIMM","32","5600","5200","1100","64","64","Samsung","M323R4GA3BB0-CQK","SAM12345"

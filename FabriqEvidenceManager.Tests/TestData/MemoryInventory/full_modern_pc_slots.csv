@@ -1,0 +1,3 @@
+﻿"BankLabel","DeviceLocator","Capacity_GB","Speed_MHz","ConfiguredClockSpeed_MHz","ConfiguredVoltage_mV","Manufacturer","PartNumber","SerialNumber","FormFactor","SMBIOSMemoryType","DataWidth_bit","TotalWidth_bit"
+"BANK 0","Controller0-ChannelA","8","3200","3200","1200","Micron Technology","","00000000","SODIMM","DDR4","64","64"
+"BANK 0","Controller1-ChannelA-DIMM0","8","3200","3200","1200","SK Hynix","HMAG68EXNSA051N","77676B97","SODIMM","DDR4","64","64"

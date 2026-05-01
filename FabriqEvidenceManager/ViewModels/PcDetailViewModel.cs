@@ -58,6 +58,28 @@ public sealed partial class PcDetailViewModel : ObservableObject
     public bool HasHwBaseBoard             => Pc.HardwareIdentifiers?.BaseBoard is not null;
     public bool HasHwSystemEnclosure       => Pc.HardwareIdentifiers?.SystemEnclosure is not null;
 
+    // §29 メモリ
+    public bool HasMemorySlots          => Pc.MemorySlots.Count > 0;
+    public bool HasMemoryArraySummaries => Pc.MemoryArraySummaries.Count > 0;
+    public bool HasMemoryInventory      => HasMemorySlots || HasMemoryArraySummaries;
+
+    /// <summary>装着総容量 (GB)。Phase C 上段サマリ表示用。</summary>
+    public int MemoryInstalledTotalGB => Pc.MemorySlots.Sum(s => s.CapacityGB ?? 0);
+
+    /// <summary>マザーボード設計上の最大搭載量 (GB)。アレイサマリ集計値。</summary>
+    public int MemoryMaxCapacityGB => Pc.MemoryArraySummaries.Sum(a => a.MaxCapacityGB ?? 0);
+
+    /// <summary>"装着/全スロット" の表示文字列 (例: "2/2"、アレイ情報無時 "2/-")。</summary>
+    public string MemorySlotUsageDisplay
+    {
+        get
+        {
+            var installed = Pc.MemorySlots.Count;
+            var total = Pc.MemoryArraySummaries.Sum(a => a.MemoryDevices ?? 0);
+            return total > 0 ? $"{installed}/{total}" : $"{installed}/-";
+        }
+    }
+
     // ---- AUTO CAPTURE プレビュー画像 ----
 
     public ObservableCollection<string> PreviewImagePaths { get; } = [];

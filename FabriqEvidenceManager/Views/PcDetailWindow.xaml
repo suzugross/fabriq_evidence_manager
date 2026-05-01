@@ -741,6 +741,78 @@
                             </DataGrid>
 
                             <!-- ============================================ -->
+                            <!-- セクション: メモリインベントリ (§29) -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="MEMORY INVENTORY"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,14,0,6"
+                                       Visibility="{Binding HasMemoryInventory, Converter={StaticResource BoolToVis}}"/>
+                            <StackPanel Margin="0,0,0,4"
+                                        Visibility="{Binding HasMemoryInventory, Converter={StaticResource BoolToVis}}">
+                                <!-- 上段サマリ: 装着 / 上限 / スロット使用 -->
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="装着総容量(GB)" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding MemoryInstalledTotalGB}" FontSize="11" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="マザーボード上限(GB)" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding MemoryMaxCapacityGB}" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="スロット使用" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding MemorySlotUsageDisplay}" FontSize="11" FontWeight="SemiBold"/>
+                                </Grid>
+
+                                <!-- DIMM 個別行 -->
+                                <DataGrid ItemsSource="{Binding Pc.MemorySlots}"
+                                          AutoGenerateColumns="False" IsReadOnly="True"
+                                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                          BorderThickness="1" BorderBrush="#E0E0E0"
+                                          RowHeight="24" FontSize="11"
+                                          MaxHeight="200"
+                                          Visibility="{Binding HasMemorySlots, Converter={StaticResource BoolToVis}}"
+                                          Margin="0,0,0,4">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Bank" Binding="{Binding BankLabel}" Width="80"/>
+                                        <DataGridTextColumn Header="DeviceLocator" Binding="{Binding DeviceLocator}" Width="180"/>
+                                        <DataGridTextColumn Header="GB" Binding="{Binding CapacityGB}" Width="50"/>
+                                        <DataGridTextColumn Header="Type" Binding="{Binding SmbiosMemoryType}" Width="60"/>
+                                        <DataGridTextColumn Header="Form" Binding="{Binding FormFactor}" Width="70"/>
+                                        <DataGridTextColumn Header="MHz" Binding="{Binding ConfiguredClockSpeedMhz}" Width="60"/>
+                                        <DataGridTextColumn Header="メーカ" Binding="{Binding Manufacturer}" Width="140"/>
+                                        <DataGridTextColumn Header="型番" Binding="{Binding PartNumber}" Width="160"/>
+                                        <DataGridTextColumn Header="SN" Binding="{Binding SerialNumber}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <!-- アレイサマリ -->
+                                <DataGrid ItemsSource="{Binding Pc.MemoryArraySummaries}"
+                                          AutoGenerateColumns="False" IsReadOnly="True"
+                                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                          BorderThickness="1" BorderBrush="#E0E0E0"
+                                          RowHeight="24" FontSize="11"
+                                          MaxHeight="120"
+                                          Visibility="{Binding HasMemoryArraySummaries, Converter={StaticResource BoolToVis}}"
+                                          Margin="0,4,0,0">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Tag" Binding="{Binding Tag}" Width="180"/>
+                                        <DataGridTextColumn Header="Loc" Binding="{Binding Location}" Width="50"/>
+                                        <DataGridTextColumn Header="Use" Binding="{Binding Use}" Width="50"/>
+                                        <DataGridTextColumn Header="ECC" Binding="{Binding MemoryErrorCorrection}" Width="50"/>
+                                        <DataGridTextColumn Header="MaxGB" Binding="{Binding MaxCapacityGB}" Width="70"/>
+                                        <DataGridTextColumn Header="スロット数" Binding="{Binding MemoryDevices}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+
+                            <!-- ============================================ -->
                             <!-- セクション: ハードウェア識別子 (§31) -->
                             <!-- ============================================ -->
                             <TextBlock Text="HARDWARE IDENTIFIERS"

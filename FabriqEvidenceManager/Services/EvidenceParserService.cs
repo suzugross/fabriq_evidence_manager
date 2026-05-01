@@ -49,6 +49,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     private readonly ICertificatesParserService _certificatesParser;
     private readonly IBatteryReportParserService _batteryReportParser;
     private readonly IHardwareIdentifiersParserService _hardwareIdentifiersParser;
+    private readonly IMemoryInventoryParserService _memoryInventoryParser;
 
     public EvidenceParserService(
         IWindowsLicenseParserService windowsLicenseParser,
@@ -56,7 +57,8 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         ISecurityBaselineParserService securityBaselineParser,
         ICertificatesParserService certificatesParser,
         IBatteryReportParserService batteryReportParser,
-        IHardwareIdentifiersParserService hardwareIdentifiersParser)
+        IHardwareIdentifiersParserService hardwareIdentifiersParser,
+        IMemoryInventoryParserService memoryInventoryParser)
     {
         _windowsLicenseParser = windowsLicenseParser;
         _officeLicenseParser = officeLicenseParser;
@@ -64,6 +66,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         _certificatesParser = certificatesParser;
         _batteryReportParser = batteryReportParser;
         _hardwareIdentifiersParser = hardwareIdentifiersParser;
+        _memoryInventoryParser = memoryInventoryParser;
     }
 
     // ================================================================
@@ -144,6 +147,10 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             case "23": TryParseSingle(dir, section, "_SecurityBaseline.txt", _securityBaselineParser.Parse, v => pc.SecurityBaseline = v); break;
             case "25": TryParseList(dir, section, "_Certificates.csv", _certificatesParser.Parse, pc.Certificates); break;
             case "26": TryParseSingle(dir, section, "_BatteryReport.html", _batteryReportParser.Parse, v => pc.BatteryReport = v); break;
+            case "29":
+                TryParseList(dir, section, "_MemorySlots.csv", _memoryInventoryParser.ParseSlots, pc.MemorySlots);
+                TryParseList(dir, section, "_MemoryArraySummary.csv", _memoryInventoryParser.ParseArraySummary, pc.MemoryArraySummaries);
+                break;
             case "31": TryParseSingle(dir, section, "_HardwareIdentifiers.txt", _hardwareIdentifiersParser.Parse, v => pc.HardwareIdentifiers = v); break;
             // 01/06/07/08/11/14/20: PopulateDetails で PcEvidence に直接格納する parse 対象なし
             //   (HostlistService / BaselineService / EvidenceVerificationService が on-demand で読む)

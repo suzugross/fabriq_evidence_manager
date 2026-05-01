@@ -33,6 +33,9 @@ public sealed class ExcelExportService : IExcelExportService
     // M1 §31: 主要 HW 識別子列数 (HWメーカ / HWモデル / マザーボードSN / SMBIOS UUID)
     private const int HwIdentifiersSubColumnCount = 4;
 
+    // M2 §29: 主要メモリ列数 (総容量(GB) / スロット使用)
+    private const int MemoryInventorySubColumnCount = 2;
+
     // NIC1列あたりのサブ列数 (MAC, アダプタ, 接続名)
     private const int NicSubColumnCount = 3;
 
@@ -48,6 +51,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor HistoryHeaderBg = XLColor.FromHtml("#538DD5");    // 水色: 実行履歴
     private static readonly XLColor LicenseHeaderBg = XLColor.FromHtml("#7B1FA2");    // 紫: ライセンス監査
     private static readonly XLColor HwIdHeaderBg = XLColor.FromHtml("#455A64");       // 濃グレー青: HW 識別子
+    private static readonly XLColor MemoryHeaderBg = XLColor.FromHtml("#00838F");     // 青緑: メモリ
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
@@ -102,6 +106,7 @@ public sealed class ExcelExportService : IExcelExportService
                            + maxNicCount * NicSubColumnCount
                            + allDriveLetters.Count * DriveSubColumnCount
                            + BatterySubColumnCount
+                           + MemoryInventorySubColumnCount
                            + HwIdentifiersSubColumnCount
                            + 1;   // 管理者メモ列 (末尾)
 
@@ -197,7 +202,14 @@ public sealed class ExcelExportService : IExcelExportService
             WriteSecurityBaselineSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 8: HW識別子 (1 行/PC、4 ブロック全列) ----
+        // ---- Sheet 8: メモリ (M2 §29: スロット詳細 + アレイサマリの 1 シート集約) ----
+        if (pcEvidences.Any(pc => pc.MemorySlots.Count > 0 || pc.MemoryArraySummaries.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteMemoryInventorySheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 9: HW識別子 (1 行/PC、4 ブロック全列) ----
         if (pcEvidences.Any(pc => pc.HardwareIdentifiers is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -422,6 +434,10 @@ public sealed class ExcelExportService : IExcelExportService
         SetHeaderCell(ws, headerRow, col++, "設計容量 (mWh)", LicenseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "満充電容量 (mWh)", LicenseHeaderBg);
 
+        // M2 §29: メモリ主要列 (詳細は メモリ シート)
+        SetHeaderCell(ws, headerRow, col++, "総容量(GB)", MemoryHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "スロット使用", MemoryHeaderBg);
+
         // M1 §31: HW 識別子主要列 (詳細は HW識別子 シート)
         SetHeaderCell(ws, headerRow, col++, "HWメーカ", HwIdHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "HWモデル", HwIdHeaderBg);
@@ -624,6 +640,10 @@ public sealed class ExcelExportService : IExcelExportService
         WriteBatteryCells(ws, row, col, pc.BatteryReport);
         col += BatterySubColumnCount;
 
+        // M2 §29: メモリ主要 2 列 (総容量 / スロット使用)。
+        WriteMemoryInventoryCells(ws, row, col, pc);
+        col += MemoryInventorySubColumnCount;
+
         // M1 §31: HW 識別子主要 4 列。
         // HWメーカ は ComputerSystem 優先、未取得時は ComputerSystemProduct.Vendor にフォールバック。
         var hw = pc.HardwareIdentifiers;
@@ -685,6 +705,32 @@ public sealed class ExcelExportService : IExcelExportService
             fullCell.Value = battery.FullChargeCapacityMwh.Value;
         else
             WriteNa(fullCell);
+    }
+
+    /// <summary>
+    /// PC情報一覧シートのメモリ 2 列 (総容量(GB) / スロット使用) を書き込む (M2 §29)。
+    /// MemorySlots 不在時は 2 列まとめて N/A。
+    /// スロット使用は "装着数/全スロット数" 形式 (例: "2/2"); array summary が無ければ
+    /// 装着数のみで表示 (例: "2/-")。
+    /// </summary>
+    private static void WriteMemoryInventoryCells(IXLWorksheet ws, int row, int colStart, PcEvidence pc)
+    {
+        var totalCell = ws.Cell(row, colStart);
+        var slotsCell = ws.Cell(row, colStart + 1);
+
+        if (pc.MemorySlots.Count == 0)
+        {
+            // §29 未取得 (v1.4 以前 evidence) → まとめて N/A
+            WriteNa(totalCell);
+            WriteNa(slotsCell);
+            return;
+        }
+
+        totalCell.Value = pc.MemorySlots.Sum(s => s.CapacityGB ?? 0);
+
+        var installed = pc.MemorySlots.Count;
+        var totalSlots = pc.MemoryArraySummaries.Sum(a => a.MemoryDevices ?? 0);
+        slotsCell.Value = totalSlots > 0 ? $"{installed}/{totalSlots}" : $"{installed}/-";
     }
 
     // ================================================================
@@ -1927,7 +1973,122 @@ public sealed class ExcelExportService : IExcelExportService
     private const int SecurityBaselineSheetColumns = 10;
 
     // ================================================================
-    // Sheet 8: HW識別子 (M1 §31: 4 ブロック全列の 1 行/PC 集約)
+    // Sheet 8: メモリ (M2 §29: スロット詳細 + アレイサマリの 1 シート集約)
+    // ================================================================
+
+    /// <summary>
+    /// メモリシートを 2 セクション構成 (スロット → アレイサマリ) で書き出す。
+    /// 単一セクションの ApplyStyles と相性が悪いため、列幅と固定行はここで個別管理する
+    /// (AutoFilter は意味を持たないので付与しない)。
+    /// </summary>
+    private static void WriteMemoryInventorySheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("メモリ");
+        ws.TabColor = MemoryHeaderBg;
+
+        var slotHeaders = new[]
+        {
+            "PC名 (計画|実)", "BankLabel", "DeviceLocator", "Capacity (GB)",
+            "Speed (MHz)", "ConfiguredClockSpeed (MHz)", "ConfiguredVoltage (mV)",
+            "Manufacturer", "PartNumber", "SerialNumber",
+            "FormFactor", "SMBIOSMemoryType", "DataWidth (bit)", "TotalWidth (bit)",
+        };
+        var arrayHeaders = new[]
+        {
+            "PC名 (計画|実)", "Tag", "Location", "Use",
+            "MemoryErrorCorrection", "MaxCapacity (GB)", "MemoryDevices",
+        };
+
+        // ---- セクション 1: メモリスロット ----
+        var row = 1;
+        WriteSectionTitle(ws, row, slotHeaders.Length, "メモリスロット (Win32_PhysicalMemory)");
+        row++;
+        for (var i = 0; i < slotHeaders.Length; i++)
+            SetHeaderCell(ws, row, i + 1, slotHeaders[i], MemoryHeaderBg);
+        row++;
+
+        var slotsStart = row;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var slot in pc.MemorySlots)
+            {
+                WriteMemorySlotRow(ws, row, pc, slot);
+                row++;
+            }
+        }
+        var slotsEnd = row - 1;
+
+        // ---- 区切り (空行 1 行) ----
+        row++;
+
+        // ---- セクション 2: メモリアレイサマリ ----
+        WriteSectionTitle(ws, row, arrayHeaders.Length, "メモリアレイサマリ (Win32_PhysicalMemoryArray)");
+        row++;
+        for (var i = 0; i < arrayHeaders.Length; i++)
+            SetHeaderCell(ws, row, i + 1, arrayHeaders[i], MemoryHeaderBg);
+        row++;
+
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var arr in pc.MemoryArraySummaries)
+            {
+                WriteMemoryArrayRow(ws, row, pc, arr);
+                row++;
+            }
+        }
+
+        // 列幅: 全使用列を内容に合わせる + 上限 (PC情報一覧と同水準)
+        var maxCols = System.Math.Max(slotHeaders.Length, arrayHeaders.Length);
+        for (var c = 1; c <= maxCols; c++)
+            ws.Column(c).AdjustToContents(1, row, 8, EvidenceConstants.ExcelMaxColumnWidth);
+
+        // スロットセクションのヘッダ行 (= row 2) を固定。アレイセクションのヘッダは別行。
+        if (slotsEnd >= slotsStart)
+            ws.SheetView.FreezeRows(2);
+    }
+
+    /// <summary>セクションタイトル行を書き込む (セル結合 + 太字)。</summary>
+    private static void WriteSectionTitle(IXLWorksheet ws, int row, int colSpan, string title)
+    {
+        var cell = ws.Cell(row, 1);
+        cell.Value = title;
+        cell.Style.Font.Bold = true;
+        cell.Style.Font.FontSize = 12;
+        cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#E0F2F1");
+        ws.Range(row, 1, row, colSpan).Merge();
+    }
+
+    private static void WriteMemorySlotRow(IXLWorksheet ws, int row, PcEvidence pc, MemorySlotEntry slot)
+    {
+        ws.Cell(row, 1).Value = pc.PcNameDisplay;
+        ws.Cell(row, 2).Value = slot.BankLabel;
+        ws.Cell(row, 3).Value = slot.DeviceLocator;
+        if (slot.CapacityGB.HasValue)              ws.Cell(row, 4).Value = slot.CapacityGB.Value;
+        if (slot.SpeedMhz.HasValue)                ws.Cell(row, 5).Value = slot.SpeedMhz.Value;
+        if (slot.ConfiguredClockSpeedMhz.HasValue) ws.Cell(row, 6).Value = slot.ConfiguredClockSpeedMhz.Value;
+        if (slot.ConfiguredVoltageMv.HasValue)     ws.Cell(row, 7).Value = slot.ConfiguredVoltageMv.Value;
+        ws.Cell(row, 8).Value  = slot.Manufacturer;
+        ws.Cell(row, 9).Value  = slot.PartNumber;
+        ws.Cell(row, 10).Value = slot.SerialNumber;
+        ws.Cell(row, 11).Value = slot.FormFactor;
+        ws.Cell(row, 12).Value = slot.SmbiosMemoryType;
+        if (slot.DataWidthBit.HasValue)  ws.Cell(row, 13).Value = slot.DataWidthBit.Value;
+        if (slot.TotalWidthBit.HasValue) ws.Cell(row, 14).Value = slot.TotalWidthBit.Value;
+    }
+
+    private static void WriteMemoryArrayRow(IXLWorksheet ws, int row, PcEvidence pc, MemoryArraySummaryEntry arr)
+    {
+        ws.Cell(row, 1).Value = pc.PcNameDisplay;
+        ws.Cell(row, 2).Value = arr.Tag;
+        ws.Cell(row, 3).Value = arr.Location;
+        ws.Cell(row, 4).Value = arr.Use;
+        ws.Cell(row, 5).Value = arr.MemoryErrorCorrection;
+        if (arr.MaxCapacityGB.HasValue) ws.Cell(row, 6).Value = arr.MaxCapacityGB.Value;
+        if (arr.MemoryDevices.HasValue) ws.Cell(row, 7).Value = arr.MemoryDevices.Value;
+    }
+
+    // ================================================================
+    // Sheet 9: HW識別子 (M1 §31: 4 ブロック全列の 1 行/PC 集約)
     // ================================================================
 
     private static void WriteHardwareIdentifiersSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)

@@ -206,6 +206,18 @@ public sealed partial class PcEvidence : ObservableObject
     [ObservableProperty]
     private HardwareIdentifiersData? _hardwareIdentifiers;
 
+    /// <summary>
+    /// メモリスロット (evidence_config v1.6.0+ §29 part 1)。
+    /// 1 件 = 装着 DIMM 1 枚。空スロットは行を出力しない仕様。
+    /// </summary>
+    public List<MemorySlotEntry> MemorySlots { get; } = [];
+
+    /// <summary>
+    /// メモリアレイサマリ (evidence_config v1.6.0+ §29 part 2)。
+    /// シングル CPU 機では 1 件、デュアル CPU サーバでは N 件になりうる。
+    /// </summary>
+    public List<MemoryArraySummaryEntry> MemoryArraySummaries { get; } = [];
+
     // ---- ライセンス判定プロパティ (DataGrid / 監査用) ----
 
     /// <summary>
