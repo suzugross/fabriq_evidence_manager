@@ -52,6 +52,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     private readonly IMemoryInventoryParserService _memoryInventoryParser;
     private readonly IEnvironmentVariablesParserService _environmentVariablesParser;
     private readonly IStartupItemsParserService _startupItemsParser;
+    private readonly IPnpDevicesParserService _pnpDevicesParser;
 
     public EvidenceParserService(
         IWindowsLicenseParserService windowsLicenseParser,
@@ -62,7 +63,8 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         IHardwareIdentifiersParserService hardwareIdentifiersParser,
         IMemoryInventoryParserService memoryInventoryParser,
         IEnvironmentVariablesParserService environmentVariablesParser,
-        IStartupItemsParserService startupItemsParser)
+        IStartupItemsParserService startupItemsParser,
+        IPnpDevicesParserService pnpDevicesParser)
     {
         _windowsLicenseParser = windowsLicenseParser;
         _officeLicenseParser = officeLicenseParser;
@@ -73,6 +75,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         _memoryInventoryParser = memoryInventoryParser;
         _environmentVariablesParser = environmentVariablesParser;
         _startupItemsParser = startupItemsParser;
+        _pnpDevicesParser = pnpDevicesParser;
     }
 
     // ================================================================
@@ -159,6 +162,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
                 TryParseList(dir, section, "_MemorySlots.csv", _memoryInventoryParser.ParseSlots, pc.MemorySlots);
                 TryParseList(dir, section, "_MemoryArraySummary.csv", _memoryInventoryParser.ParseArraySummary, pc.MemoryArraySummaries);
                 break;
+            case "30": TryParseList(dir, section, "_PnpDevices.csv", _pnpDevicesParser.Parse, pc.PnpDevices); break;
             case "31": TryParseSingle(dir, section, "_HardwareIdentifiers.txt", _hardwareIdentifiersParser.Parse, v => pc.HardwareIdentifiers = v); break;
             // 01/06/07/08/11/14/20: PopulateDetails で PcEvidence に直接格納する parse 対象なし
             //   (HostlistService / BaselineService / EvidenceVerificationService が on-demand で読む)

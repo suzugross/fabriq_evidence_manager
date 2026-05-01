@@ -230,6 +230,12 @@ public sealed partial class PcEvidence : ObservableObject
     /// </summary>
     public List<StartupItemEntry> StartupItems { get; } = [];
 
+    /// <summary>
+    /// Plug and Play デバイス (evidence_config v1.6.0+ §30)。Win32_PnPEntity 由来の全デバイス。
+    /// 1 PC あたり 200〜400 件規模 (現在接続中 Present=true + 過去キャッシュ Present=false の混在)。
+    /// </summary>
+    public List<PnpDeviceEntry> PnpDevices { get; } = [];
+
     // ---- ライセンス判定プロパティ (DataGrid / 監査用) ----
 
     /// <summary>

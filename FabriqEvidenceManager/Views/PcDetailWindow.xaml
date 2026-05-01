@@ -1030,6 +1030,54 @@
                             </DataGrid>
 
                             <!-- ============================================ -->
+                            <!-- セクション: PnP デバイス (§30) -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,14,0,6"
+                                       Visibility="{Binding HasPnpDevices, Converter={StaticResource BoolToVis}}">
+                                <Run Text="PNP DEVICES"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding PnpDeviceCountDisplay, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding Pc.PnpDevices}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="300"
+                                      EnableRowVirtualization="True"
+                                      Visibility="{Binding HasPnpDevices, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Class" Binding="{Binding Class}" Width="120"/>
+                                    <DataGridTextColumn Header="FriendlyName" Binding="{Binding FriendlyName}" Width="240">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                <Setter Property="ToolTip" Value="{Binding FriendlyName}"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="70"/>
+                                    <DataGridCheckBoxColumn Header="接続" Binding="{Binding Present}" Width="50"/>
+                                    <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer}" Width="140"/>
+                                    <DataGridTextColumn Header="DriverVersion" Binding="{Binding DriverVersion}" Width="110"/>
+                                    <DataGridTextColumn Header="DriverDate" Binding="{Binding DriverDate}" Width="90"/>
+                                    <DataGridTextColumn Header="InstanceId" Binding="{Binding InstanceId}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                <Setter Property="ToolTip" Value="{Binding InstanceId}"/>
+                                                <Setter Property="FontFamily" Value="Consolas"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
                             <!-- セクション: HOSTLIST 突合結果 -->
                             <!-- ============================================ -->
                             <TextBlock Text="HOSTLIST VERIFICATION"

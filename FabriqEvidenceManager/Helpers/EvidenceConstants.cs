@@ -171,6 +171,7 @@ public static class EvidenceConstants
         ["27"] = new("Environment Variables"),
         ["28"] = new("Startup Items"),
         ["29"] = new("Memory Slots & Array"),
+        ["30"] = new("PnP Devices"),
         ["31"] = new("Hardware Identifiers"),
     };
 

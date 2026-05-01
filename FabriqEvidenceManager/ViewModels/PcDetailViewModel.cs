@@ -108,6 +108,21 @@ public sealed partial class PcDetailViewModel : ObservableObject
         }
     }
 
+    // §30 PnP デバイス
+    public bool HasPnpDevices => Pc.PnpDevices.Count > 0;
+
+    /// <summary>"Total: T / Present: M / Disconnected: N" の状態別件数表示。</summary>
+    public string PnpDeviceCountDisplay
+    {
+        get
+        {
+            var total = Pc.PnpDevices.Count;
+            var present = Pc.PnpDevices.Count(d => d.Present);
+            var disconnected = total - present;
+            return $"Total: {total} / Present: {present} / Disconnected: {disconnected}";
+        }
+    }
+
     // ---- AUTO CAPTURE プレビュー画像 ----
 
     public ObservableCollection<string> PreviewImagePaths { get; } = [];

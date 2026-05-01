@@ -54,6 +54,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor MemoryHeaderBg = XLColor.FromHtml("#00838F");     // 青緑: メモリ
     private static readonly XLColor EnvVarHeaderBg = XLColor.FromHtml("#5D4037");     // 茶: 環境変数
     private static readonly XLColor StartupHeaderBg = XLColor.FromHtml("#388E3C");    // 深緑: 自動起動
+    private static readonly XLColor PnpHeaderBg = XLColor.FromHtml("#D81B60");        // 濃ピンク: PnP デバイス
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
@@ -230,6 +231,13 @@ public sealed class ExcelExportService : IExcelExportService
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteStartupItemsSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 12: PnPデバイス (M5 §30: 200〜400 行/PC) ----
+        if (pcEvidences.Any(pc => pc.PnpDevices.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WritePnpDevicesSheet(workbook, pcEvidences);
         }
 
         // 証明書 (§25) は N 行/PC のため main ではなく pc_details/ 側に出力する
@@ -2276,6 +2284,51 @@ public sealed class ExcelExportService : IExcelExportService
                 ws.Cell(row, 5).Value = s.Location;
                 ws.Cell(row, 6).Value = TruncateForCell(s.Command);
                 ws.Cell(row, 7).Value = s.Enabled;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    // ================================================================
+    // Sheet 12: PnPデバイス (M5 §30: Win32_PnPEntity 由来、200〜400 行/PC)
+    // ================================================================
+
+    /// <summary>
+    /// PnP デバイスシート (PC名 + 9 元列 = 10 列) を 1 シートに集約。
+    /// InstanceId は 200 文字超もありうるため TruncateForCell で安全化。
+    /// 行数が大きいため AutoFilter を活用してフリート横断で絞込み可能にする。
+    /// </summary>
+    private static void WritePnpDevicesSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("PnPデバイス");
+        ws.TabColor = PnpHeaderBg;
+
+        var headers = new[]
+        {
+            "PC名 (計画|実)",
+            "Class", "FriendlyName", "Status", "Present",
+            "Manufacturer", "Service", "DriverVersion", "DriverDate", "InstanceId",
+        };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], PnpHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var d in pc.PnpDevices)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = d.Class;
+                ws.Cell(row, 3).Value = d.FriendlyName;
+                ws.Cell(row, 4).Value = d.Status;
+                ws.Cell(row, 5).Value = d.Present;
+                ws.Cell(row, 6).Value = d.Manufacturer;
+                ws.Cell(row, 7).Value = d.Service;
+                ws.Cell(row, 8).Value = d.DriverVersion;
+                ws.Cell(row, 9).Value = d.DriverDate;
+                ws.Cell(row, 10).Value = TruncateForCell(d.InstanceId);
                 row++;
             }
         }
