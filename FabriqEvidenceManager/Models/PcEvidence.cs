@@ -224,6 +224,12 @@ public sealed partial class PcEvidence : ObservableObject
     /// </summary>
     public List<EnvironmentVariableEntry> EnvironmentVariables { get; } = [];
 
+    /// <summary>
+    /// 自動起動項目 (evidence_config v1.6.0+ §28)。レジストリ Run キー由来 + タスクスケジューラ由来の混在 1 リスト。
+    /// 1 PC あたり 20〜40 件程度が一般的。
+    /// </summary>
+    public List<StartupItemEntry> StartupItems { get; } = [];
+
     // ---- ライセンス判定プロパティ (DataGrid / 監査用) ----
 
     /// <summary>

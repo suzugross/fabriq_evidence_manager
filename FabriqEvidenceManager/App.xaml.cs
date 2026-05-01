@@ -33,6 +33,7 @@ public partial class App : Application
         services.AddSingleton<IHardwareIdentifiersParserService, HardwareIdentifiersParserService>();
         services.AddSingleton<IMemoryInventoryParserService, MemoryInventoryParserService>();
         services.AddSingleton<IEnvironmentVariablesParserService, EnvironmentVariablesParserService>();
+        services.AddSingleton<IStartupItemsParserService, StartupItemsParserService>();
         services.AddSingleton<IEvidenceParserService, EvidenceParserService>();
         services.AddSingleton<IHostlistService, HostlistService>();
         services.AddSingleton<IEvidenceVerificationService, EvidenceVerificationService>();

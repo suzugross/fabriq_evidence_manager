@@ -53,6 +53,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor HwIdHeaderBg = XLColor.FromHtml("#455A64");       // 濃グレー青: HW 識別子
     private static readonly XLColor MemoryHeaderBg = XLColor.FromHtml("#00838F");     // 青緑: メモリ
     private static readonly XLColor EnvVarHeaderBg = XLColor.FromHtml("#5D4037");     // 茶: 環境変数
+    private static readonly XLColor StartupHeaderBg = XLColor.FromHtml("#388E3C");    // 深緑: 自動起動
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
@@ -222,6 +223,13 @@ public sealed class ExcelExportService : IExcelExportService
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteEnvironmentVariablesSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 11: スタートアップ (M4 §28: N 行/PC、Registry + ScheduledTask 混在) ----
+        if (pcEvidences.Any(pc => pc.StartupItems.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteStartupItemsSheet(workbook, pcEvidences);
         }
 
         // 証明書 (§25) は N 行/PC のため main ではなく pc_details/ 側に出力する
@@ -2232,6 +2240,42 @@ public sealed class ExcelExportService : IExcelExportService
                 ws.Cell(row, 2).Value = ev.Scope;
                 ws.Cell(row, 3).Value = ev.Name;
                 ws.Cell(row, 4).Value = TruncateForCell(ev.Value);
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    // ================================================================
+    // Sheet 11: スタートアップ (M4 §28: Win32_StartupCommand + ScheduledTask 混在の N 行/PC)
+    // ================================================================
+
+    /// <summary>
+    /// 自動起動シート (PC名 / Source / Name / User / Location / Command / Enabled) を 1 シートに集約。
+    /// Command は引数を含む長文になり得るため TruncateForCell で安全化。
+    /// </summary>
+    private static void WriteStartupItemsSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("スタートアップ");
+        ws.TabColor = StartupHeaderBg;
+
+        var headers = new[] { "PC名 (計画|実)", "Source", "Name", "User", "Location", "Command", "Enabled" };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], StartupHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var s in pc.StartupItems)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = s.Source;
+                ws.Cell(row, 3).Value = s.Name;
+                ws.Cell(row, 4).Value = s.User;
+                ws.Cell(row, 5).Value = s.Location;
+                ws.Cell(row, 6).Value = TruncateForCell(s.Command);
+                ws.Cell(row, 7).Value = s.Enabled;
                 row++;
             }
         }

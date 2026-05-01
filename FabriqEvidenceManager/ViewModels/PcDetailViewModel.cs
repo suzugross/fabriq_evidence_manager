@@ -94,6 +94,20 @@ public sealed partial class PcDetailViewModel : ObservableObject
         }
     }
 
+    // §28 自動起動項目
+    public bool HasStartupItems => Pc.StartupItems.Count > 0;
+
+    /// <summary>"Registry: M / Task: N" のソース別件数表示。</summary>
+    public string StartupItemSourceCountDisplay
+    {
+        get
+        {
+            var registry = Pc.StartupItems.Count(s => s.Source == "Win32_StartupCommand");
+            var task     = Pc.StartupItems.Count(s => s.Source == "ScheduledTask");
+            return $"Registry: {registry} / Task: {task}";
+        }
+    }
+
     // ---- AUTO CAPTURE プレビュー画像 ----
 
     public ObservableCollection<string> PreviewImagePaths { get; } = [];
