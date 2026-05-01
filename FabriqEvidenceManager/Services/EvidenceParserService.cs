@@ -53,6 +53,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     private readonly IEnvironmentVariablesParserService _environmentVariablesParser;
     private readonly IStartupItemsParserService _startupItemsParser;
     private readonly IPnpDevicesParserService _pnpDevicesParser;
+    private readonly IGroupPolicyParserService _groupPolicyParser;
 
     public EvidenceParserService(
         IWindowsLicenseParserService windowsLicenseParser,
@@ -64,7 +65,8 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         IMemoryInventoryParserService memoryInventoryParser,
         IEnvironmentVariablesParserService environmentVariablesParser,
         IStartupItemsParserService startupItemsParser,
-        IPnpDevicesParserService pnpDevicesParser)
+        IPnpDevicesParserService pnpDevicesParser,
+        IGroupPolicyParserService groupPolicyParser)
     {
         _windowsLicenseParser = windowsLicenseParser;
         _officeLicenseParser = officeLicenseParser;
@@ -76,6 +78,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         _environmentVariablesParser = environmentVariablesParser;
         _startupItemsParser = startupItemsParser;
         _pnpDevicesParser = pnpDevicesParser;
+        _groupPolicyParser = groupPolicyParser;
     }
 
     // ================================================================
@@ -154,6 +157,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             case "21": TryParseSingle(dir, section, "_WindowsLicense.txt", _windowsLicenseParser.Parse, v => pc.WindowsLicense = v); break;
             case "22": ApplyOfficeLicenseDetail(pc, dir, section); break;
             case "23": TryParseSingle(dir, section, "_SecurityBaseline.txt", _securityBaselineParser.Parse, v => pc.SecurityBaseline = v); break;
+            case "24": ApplyGroupPolicyDetail(pc, dir, section); break;
             case "25": TryParseList(dir, section, "_Certificates.csv", _certificatesParser.Parse, pc.Certificates); break;
             case "26": TryParseSingle(dir, section, "_BatteryReport.html", _batteryReportParser.Parse, v => pc.BatteryReport = v); break;
             case "27": TryParseList(dir, section, "_EnvironmentVariables.csv", _environmentVariablesParser.Parse, pc.EnvironmentVariables); break;
@@ -436,6 +440,35 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     /// 両方を section.RegularFiles から発見して OfficeLicenseParserService に渡す。
     /// CSV 不在時 (旧 evidence) は txt のみで動作 (パーサ側で空配列扱い)。
     /// </summary>
+    /// <summary>
+    /// §24 Group Policy: 24_GroupPolicySummary.txt を構造化パース、24_GroupPolicy.html は
+    /// 絶対パスのみ Model に格納する。HTML 本体 (240KB 規模) はメモリ非保持。
+    /// summary 不在時は GroupPolicyReport 自体を生成しない (null のまま)。
+    /// </summary>
+    private void ApplyGroupPolicyDetail(PcEvidence pc, string dir, ManifestSection section)
+    {
+        var summaryFile = section.RegularFiles.FirstOrDefault(
+            f => f.EndsWith("_GroupPolicySummary.txt", StringComparison.OrdinalIgnoreCase));
+        if (summaryFile is null) return;
+        var summaryPath = Path.Combine(dir, summaryFile);
+        if (!File.Exists(summaryPath)) return;
+
+        var htmlFile = section.RegularFiles.FirstOrDefault(
+            f => f.EndsWith("_GroupPolicy.html", StringComparison.OrdinalIgnoreCase));
+        var htmlPath = htmlFile is null ? null : Path.Combine(dir, htmlFile);
+        // gpresult 失敗時は HTML が出力されないこともあるため File.Exists で実在確認
+        if (htmlPath is not null && !File.Exists(htmlPath)) htmlPath = null;
+
+        try
+        {
+            pc.GroupPolicyReport = _groupPolicyParser.Parse(summaryPath, htmlPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Parse Skip] {summaryPath}: {ex.Message}");
+        }
+    }
+
     private void ApplyOfficeLicenseDetail(PcEvidence pc, string dir, ManifestSection section)
     {
         var txtFile = section.RegularFiles.FirstOrDefault(

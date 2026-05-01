@@ -236,6 +236,14 @@ public sealed partial class PcEvidence : ObservableObject
     /// </summary>
     public List<PnpDeviceEntry> PnpDevices { get; } = [];
 
+    /// <summary>
+    /// グループポリシーレポート (evidence_config v1.6.0+ §24)。
+    /// gpresult /h サマリの構造化結果 + HTML ファイル絶対パス。
+    /// HTML 本体 (240KB 規模) はメモリ非保持で、HtmlFilePath 経由でブラウザ起動する設計。
+    /// </summary>
+    [ObservableProperty]
+    private GroupPolicyReport? _groupPolicyReport;
+
     // ---- ライセンス判定プロパティ (DataGrid / 監査用) ----
 
     /// <summary>

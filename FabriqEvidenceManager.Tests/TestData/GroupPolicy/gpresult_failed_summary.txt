@@ -1,0 +1,15 @@
+
+========================================
+Group Policy Report
+========================================
+Running gpresult /h ...
+Temp HTML:            C:\Users\test\AppData\Local\Temp\fabriq_gp_failed.html
+Target HTML:          24_GroupPolicy.html
+
+
+gpresult exit code:   1612
+HTML file size:       0 bytes
+PartOfDomain:         False
+Domain:
+ExecutingUser:        test
+(NOTE: user-side RSoP reflects the executing user, not the end-user.)

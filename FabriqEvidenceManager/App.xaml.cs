@@ -35,6 +35,7 @@ public partial class App : Application
         services.AddSingleton<IEnvironmentVariablesParserService, EnvironmentVariablesParserService>();
         services.AddSingleton<IStartupItemsParserService, StartupItemsParserService>();
         services.AddSingleton<IPnpDevicesParserService, PnpDevicesParserService>();
+        services.AddSingleton<IGroupPolicyParserService, GroupPolicyParserService>();
         services.AddSingleton<IEvidenceParserService, EvidenceParserService>();
         services.AddSingleton<IHostlistService, HostlistService>();
         services.AddSingleton<IEvidenceVerificationService, EvidenceVerificationService>();

@@ -33,7 +33,8 @@ public class SystemInfoComparatorTests
                new SecurityBaselineParserService(), new CertificatesParserService(),
                new BatteryReportParserService(), new HardwareIdentifiersParserService(),
                new MemoryInventoryParserService(), new EnvironmentVariablesParserService(),
-               new StartupItemsParserService(), new PnpDevicesParserService());
+               new StartupItemsParserService(), new PnpDevicesParserService(),
+               new GroupPolicyParserService());
 
     private static PcEvidence MakePc(string name, string pcInfoDir)
     {

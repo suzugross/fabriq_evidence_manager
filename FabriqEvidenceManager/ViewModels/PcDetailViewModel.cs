@@ -123,6 +123,44 @@ public sealed partial class PcDetailViewModel : ObservableObject
         }
     }
 
+    // §24 グループポリシーレポート
+    public bool HasGroupPolicyReport => Pc.GroupPolicyReport is not null;
+
+    /// <summary>"OK" / "Failed (code N)" / "(取得不能)" の表示文字列 (Excel 主要列と共用ロジック)。</summary>
+    public string GroupPolicyStatusDisplay => GroupPolicyStatusFor(Pc.GroupPolicyReport);
+
+    /// <summary>HTML ファイルが実在しブラウザで開けるか (ボタン CanExecute 用)。</summary>
+    public bool CanOpenGroupPolicyHtml =>
+        Pc.GroupPolicyReport?.HtmlFilePath is { } p && File.Exists(p);
+
+    /// <summary>HTML ファイルを OS 既定ブラウザで開く。</summary>
+    [RelayCommand]
+    private void OpenGroupPolicyHtml()
+    {
+        var path = Pc.GroupPolicyReport?.HtmlFilePath;
+        if (path is null || !File.Exists(path)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+            });
+        }
+        catch (System.Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[OpenGpHtml] {path}: {ex.Message}");
+        }
+    }
+
+    /// <summary>GroupPolicy の status 表示計算 (Excel 主要列と共用)。</summary>
+    public static string GroupPolicyStatusFor(GroupPolicyReport? report)
+    {
+        if (report is null) return "(取得不能)";
+        if (report.IsSuccess) return "OK";
+        return $"Failed (code {report.ExecutionStatus?.ToString() ?? "?"})";
+    }
+
     // ---- AUTO CAPTURE プレビュー画像 ----
 
     public ObservableCollection<string> PreviewImagePaths { get; } = [];

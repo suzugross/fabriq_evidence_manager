@@ -36,6 +36,9 @@ public sealed class ExcelExportService : IExcelExportService
     // M2 §29: 主要メモリ列数 (総容量(GB) / スロット使用)
     private const int MemoryInventorySubColumnCount = 2;
 
+    // M6 §24: 主要 GP 列数 (GP Status のみ)
+    private const int GroupPolicySubColumnCount = 1;
+
     // NIC1列あたりのサブ列数 (MAC, アダプタ, 接続名)
     private const int NicSubColumnCount = 3;
 
@@ -55,6 +58,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor EnvVarHeaderBg = XLColor.FromHtml("#5D4037");     // 茶: 環境変数
     private static readonly XLColor StartupHeaderBg = XLColor.FromHtml("#388E3C");    // 深緑: 自動起動
     private static readonly XLColor PnpHeaderBg = XLColor.FromHtml("#D81B60");        // 濃ピンク: PnP デバイス
+    private static readonly XLColor GpHeaderBg = XLColor.FromHtml("#E65100");         // 濃オレンジ: グループポリシー
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
@@ -110,6 +114,7 @@ public sealed class ExcelExportService : IExcelExportService
                            + allDriveLetters.Count * DriveSubColumnCount
                            + BatterySubColumnCount
                            + MemoryInventorySubColumnCount
+                           + GroupPolicySubColumnCount
                            + HwIdentifiersSubColumnCount
                            + 1;   // 管理者メモ列 (末尾)
 
@@ -205,44 +210,24 @@ public sealed class ExcelExportService : IExcelExportService
             WriteSecurityBaselineSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 8: メモリ (M2 §29: スロット詳細 + アレイサマリの 1 シート集約) ----
-        if (pcEvidences.Any(pc => pc.MemorySlots.Count > 0 || pc.MemoryArraySummaries.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteMemoryInventorySheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 9: HW識別子 (1 行/PC、4 ブロック全列) ----
+        // ---- Sheet 8: HW識別子 (1 行/PC、4 ブロック全列) ----
         if (pcEvidences.Any(pc => pc.HardwareIdentifiers is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteHardwareIdentifiersSheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 10: 環境変数 (M3 §27: N 行/PC、Machine + User 混在) ----
-        if (pcEvidences.Any(pc => pc.EnvironmentVariables.Count > 0))
+        // ---- Sheet 9: グループポリシー (M6 §24: 1 行/PC) ----
+        if (pcEvidences.Any(pc => pc.GroupPolicyReport is not null))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            WriteEnvironmentVariablesSheet(workbook, pcEvidences);
+            WriteGroupPolicySheet(workbook, pcEvidences);
         }
 
-        // ---- Sheet 11: スタートアップ (M4 §28: N 行/PC、Registry + ScheduledTask 混在) ----
-        if (pcEvidences.Any(pc => pc.StartupItems.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WriteStartupItemsSheet(workbook, pcEvidences);
-        }
-
-        // ---- Sheet 12: PnPデバイス (M5 §30: 200〜400 行/PC) ----
-        if (pcEvidences.Any(pc => pc.PnpDevices.Count > 0))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            WritePnpDevicesSheet(workbook, pcEvidences);
-        }
-
-        // 証明書 (§25) は N 行/PC のため main ではなく pc_details/ 側に出力する
-        // (M13 当初は main にフラット集約していたが、フリート規模で行数が膨大になるため
-        // 他の N 行データと同じ流派に揃えた)。
+        // 以下は N 行/PC のため main ではなく pc_details/ 側に出力する
+        // (M13 §25 証明書 / 続く §29 メモリ / §27 環境変数 / §28 スタートアップ /
+        //  §30 PnPデバイス。フリート規模で行数が膨大になるためフリート横断 1 シート集約は不適)。
+        // フリートサマリは PC情報一覧シートの主要列 (総容量(GB) / スロット使用 等) で代替。
 
         workbook.SaveAs(outputFilePath);
         return Task.CompletedTask;
@@ -362,6 +347,29 @@ public sealed class ExcelExportService : IExcelExportService
             cancellationToken.ThrowIfCancellationRequested();
             WriteCertificatesSheet(workbook, single);
         }
+        // M2 §29 / M3 §27 / M4 §28 / M5 §30: フリート規模で行数が膨大になるため
+        // 証明書 (§25) と同じく pc_details/ 側に出力する。
+        // フリートサマリは PC情報一覧シートの主要列 (総容量 / スロット使用 等) で代替。
+        if (pc.MemorySlots.Count > 0 || pc.MemoryArraySummaries.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteMemoryInventorySheet(workbook, single);
+        }
+        if (pc.EnvironmentVariables.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteEnvironmentVariablesSheet(workbook, single);
+        }
+        if (pc.StartupItems.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteStartupItemsSheet(workbook, single);
+        }
+        if (pc.PnpDevices.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WritePnpDevicesSheet(workbook, single);
+        }
         if (pc.UnknownSections.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -419,6 +427,10 @@ public sealed class ExcelExportService : IExcelExportService
             || pc.RestorePoints.Count > 0
             || pc.WindowsUpdates.Count > 0
             || pc.Certificates.Count > 0
+            || pc.MemorySlots.Count > 0 || pc.MemoryArraySummaries.Count > 0
+            || pc.EnvironmentVariables.Count > 0
+            || pc.StartupItems.Count > 0
+            || pc.PnpDevices.Count > 0
             || pc.UnknownSections.Count > 0;
     }
 
@@ -461,6 +473,9 @@ public sealed class ExcelExportService : IExcelExportService
         // M2 §29: メモリ主要列 (詳細は メモリ シート)
         SetHeaderCell(ws, headerRow, col++, "総容量(GB)", MemoryHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "スロット使用", MemoryHeaderBg);
+
+        // M6 §24: GP 主要列 (詳細は グループポリシー シート)
+        SetHeaderCell(ws, headerRow, col++, "GP Status", GpHeaderBg);
 
         // M1 §31: HW 識別子主要列 (詳細は HW識別子 シート)
         SetHeaderCell(ws, headerRow, col++, "HWメーカ", HwIdHeaderBg);
@@ -668,6 +683,9 @@ public sealed class ExcelExportService : IExcelExportService
         WriteMemoryInventoryCells(ws, row, col, pc);
         col += MemoryInventorySubColumnCount;
 
+        // M6 §24: GP 主要 1 列 (Status)。失敗時は赤強調 + 取得不能はグレー。
+        WriteGroupPolicyStatusCell(ws.Cell(row, col++), pc.GroupPolicyReport);
+
         // M1 §31: HW 識別子主要 4 列。
         // HWメーカ は ComputerSystem 優先、未取得時は ComputerSystemProduct.Vendor にフォールバック。
         var hw = pc.HardwareIdentifiers;
@@ -755,6 +773,34 @@ public sealed class ExcelExportService : IExcelExportService
         var installed = pc.MemorySlots.Count;
         var totalSlots = pc.MemoryArraySummaries.Sum(a => a.MemoryDevices ?? 0);
         slotsCell.Value = totalSlots > 0 ? $"{installed}/{totalSlots}" : $"{installed}/-";
+    }
+
+    /// <summary>
+    /// PC情報一覧シートの GP Status 1 列を書き込む (M6 §24)。
+    /// "OK" (成功)=緑 / "Failed (code N)"=赤 / "(取得不能)"=グレー。
+    /// </summary>
+    private static void WriteGroupPolicyStatusCell(IXLCell cell, GroupPolicyReport? report)
+    {
+        if (report is null)
+        {
+            cell.Value = "(取得不能)";
+            cell.Style.Font.FontColor = XLColor.Gray;
+            return;
+        }
+        if (report.IsSuccess)
+        {
+            cell.Value = "OK";
+            cell.Style.Font.FontColor = MatchFont;
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = MatchBg;
+        }
+        else
+        {
+            cell.Value = $"Failed (code {report.ExecutionStatus?.ToString() ?? "?"})";
+            cell.Style.Font.FontColor = MismatchFont;
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = MismatchBg;
+        }
     }
 
     // ================================================================
@@ -2331,6 +2377,46 @@ public sealed class ExcelExportService : IExcelExportService
                 ws.Cell(row, 10).Value = TruncateForCell(d.InstanceId);
                 row++;
             }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    // ================================================================
+    // Sheet 13: グループポリシー (M6 §24: gpresult サマリ + HTML パス参照)
+    // ================================================================
+
+    /// <summary>
+    /// グループポリシーシート (PC名 + GP Status + 5 元フィールド = 7 列) を 1 行/PC で集約。
+    /// HTML への hyperlink は付与しない (delivery 相対パス計算が複雑で、
+    /// 後続フェーズで検討予定)。HTML 参照は PcDetailWindow のブラウザボタン経由で行う。
+    /// </summary>
+    private static void WriteGroupPolicySheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("グループポリシー");
+        ws.TabColor = GpHeaderBg;
+
+        var headers = new[]
+        {
+            "PC名 (計画|実)", "GP Status",
+            "Exit Code", "HTML Size (bytes)",
+            "PartOfDomain", "Domain", "ExecutingUser",
+        };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], GpHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (pc.GroupPolicyReport is not { } gp) continue;
+            ws.Cell(row, 1).Value = pc.PcNameDisplay;
+            WriteGroupPolicyStatusCell(ws.Cell(row, 2), gp);
+            if (gp.ExecutionStatus.HasValue) ws.Cell(row, 3).Value = gp.ExecutionStatus.Value;
+            if (gp.HtmlFileSizeBytes.HasValue) ws.Cell(row, 4).Value = gp.HtmlFileSizeBytes.Value;
+            if (gp.PartOfDomain.HasValue) ws.Cell(row, 5).Value = gp.PartOfDomain.Value;
+            ws.Cell(row, 6).Value = gp.Domain;
+            ws.Cell(row, 7).Value = gp.ExecutingUser;
+            row++;
         }
 
         ApplyStyles(ws, row - 2, headers.Length);

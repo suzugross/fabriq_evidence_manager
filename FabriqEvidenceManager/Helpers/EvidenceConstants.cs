@@ -166,6 +166,7 @@ public static class EvidenceConstants
         ["21"] = new("Windows License"),
         ["22"] = new("Office License"),
         ["23"] = new("Security Baseline"),
+        ["24"] = new("Group Policy Report"),
         ["25"] = new("Certificates"),
         ["26"] = new("Battery Report"),
         ["27"] = new("Environment Variables"),

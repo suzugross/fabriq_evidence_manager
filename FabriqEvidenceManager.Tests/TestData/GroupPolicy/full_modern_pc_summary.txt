@@ -1,0 +1,15 @@
+﻿
+========================================
+Group Policy Report
+========================================
+Running gpresult /h ...
+Temp HTML:            C:\Users\y_suzuki\AppData\Local\Temp\fabriq_gp_bacef7ca.html
+Target HTML:          24_GroupPolicy.html
+
+
+gpresult exit code:   0
+HTML file size:       240972 bytes
+PartOfDomain:         True
+Domain:               e-cri.local
+ExecutingUser:        y_suzuki
+(NOTE: user-side RSoP reflects the executing user, not the end-user.)

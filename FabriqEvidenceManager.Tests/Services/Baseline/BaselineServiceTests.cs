@@ -138,7 +138,8 @@ public class BaselineServiceTests
         var envVarParser = new EnvironmentVariablesParserService();
         var startupParser = new StartupItemsParserService();
         var pnpParser = new PnpDevicesParserService();
-        var parser = new EvidenceParserService(winParser, officeParser, sbParser, certParser, batteryParser, hwIdParser, memInvParser, envVarParser, startupParser, pnpParser);
+        var gpParser = new GroupPolicyParserService();
+        var parser = new EvidenceParserService(winParser, officeParser, sbParser, certParser, batteryParser, hwIdParser, memInvParser, envVarParser, startupParser, pnpParser, gpParser);
         var checklistParser = new ChecklistParserService();
 
         var comparators = new IBaselineComparator[]
