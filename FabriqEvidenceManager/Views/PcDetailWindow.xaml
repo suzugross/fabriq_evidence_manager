@@ -953,6 +953,39 @@
                             </StackPanel>
 
                             <!-- ============================================ -->
+                            <!-- セクション: 環境変数 (§27) -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,14,0,6"
+                                       Visibility="{Binding HasEnvironmentVariables, Converter={StaticResource BoolToVis}}">
+                                <Run Text="ENVIRONMENT VARIABLES"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding EnvironmentVariableScopeCountDisplay, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding Pc.EnvironmentVariables}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="240"
+                                      Visibility="{Binding HasEnvironmentVariables, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Scope" Binding="{Binding Scope}" Width="70"/>
+                                    <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="180"/>
+                                    <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                <Setter Property="ToolTip" Value="{Binding Value}"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
                             <!-- セクション: HOSTLIST 突合結果 -->
                             <!-- ============================================ -->
                             <TextBlock Text="HOSTLIST VERIFICATION"

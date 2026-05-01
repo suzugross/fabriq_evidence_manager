@@ -218,6 +218,12 @@ public sealed partial class PcEvidence : ObservableObject
     /// </summary>
     public List<MemoryArraySummaryEntry> MemoryArraySummaries { get; } = [];
 
+    /// <summary>
+    /// 環境変数 (evidence_config v1.6.0+ §27)。Machine スコープと User スコープの混在 1 リスト。
+    /// 1 PC あたり 20〜50 件程度が一般的。Path 系は数百〜千文字超になりうる。
+    /// </summary>
+    public List<EnvironmentVariableEntry> EnvironmentVariables { get; } = [];
+
     // ---- ライセンス判定プロパティ (DataGrid / 監査用) ----
 
     /// <summary>

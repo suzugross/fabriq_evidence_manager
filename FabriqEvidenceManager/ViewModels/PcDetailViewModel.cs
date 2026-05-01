@@ -80,6 +80,20 @@ public sealed partial class PcDetailViewModel : ObservableObject
         }
     }
 
+    // §27 環境変数
+    public bool HasEnvironmentVariables => Pc.EnvironmentVariables.Count > 0;
+
+    /// <summary>"Machine: M / User: N" のスコープ別件数表示。</summary>
+    public string EnvironmentVariableScopeCountDisplay
+    {
+        get
+        {
+            var machine = Pc.EnvironmentVariables.Count(e => e.Scope == "Machine");
+            var user    = Pc.EnvironmentVariables.Count(e => e.Scope == "User");
+            return $"Machine: {machine} / User: {user}";
+        }
+    }
+
     // ---- AUTO CAPTURE プレビュー画像 ----
 
     public ObservableCollection<string> PreviewImagePaths { get; } = [];

@@ -32,7 +32,7 @@ public class SystemInfoComparatorTests
         => new(new WindowsLicenseParserService(), new OfficeLicenseParserService(),
                new SecurityBaselineParserService(), new CertificatesParserService(),
                new BatteryReportParserService(), new HardwareIdentifiersParserService(),
-               new MemoryInventoryParserService());
+               new MemoryInventoryParserService(), new EnvironmentVariablesParserService());
 
     private static PcEvidence MakePc(string name, string pcInfoDir)
     {

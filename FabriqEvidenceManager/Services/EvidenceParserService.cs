@@ -50,6 +50,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     private readonly IBatteryReportParserService _batteryReportParser;
     private readonly IHardwareIdentifiersParserService _hardwareIdentifiersParser;
     private readonly IMemoryInventoryParserService _memoryInventoryParser;
+    private readonly IEnvironmentVariablesParserService _environmentVariablesParser;
 
     public EvidenceParserService(
         IWindowsLicenseParserService windowsLicenseParser,
@@ -58,7 +59,8 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         ICertificatesParserService certificatesParser,
         IBatteryReportParserService batteryReportParser,
         IHardwareIdentifiersParserService hardwareIdentifiersParser,
-        IMemoryInventoryParserService memoryInventoryParser)
+        IMemoryInventoryParserService memoryInventoryParser,
+        IEnvironmentVariablesParserService environmentVariablesParser)
     {
         _windowsLicenseParser = windowsLicenseParser;
         _officeLicenseParser = officeLicenseParser;
@@ -67,6 +69,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
         _batteryReportParser = batteryReportParser;
         _hardwareIdentifiersParser = hardwareIdentifiersParser;
         _memoryInventoryParser = memoryInventoryParser;
+        _environmentVariablesParser = environmentVariablesParser;
     }
 
     // ================================================================
@@ -147,6 +150,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             case "23": TryParseSingle(dir, section, "_SecurityBaseline.txt", _securityBaselineParser.Parse, v => pc.SecurityBaseline = v); break;
             case "25": TryParseList(dir, section, "_Certificates.csv", _certificatesParser.Parse, pc.Certificates); break;
             case "26": TryParseSingle(dir, section, "_BatteryReport.html", _batteryReportParser.Parse, v => pc.BatteryReport = v); break;
+            case "27": TryParseList(dir, section, "_EnvironmentVariables.csv", _environmentVariablesParser.Parse, pc.EnvironmentVariables); break;
             case "29":
                 TryParseList(dir, section, "_MemorySlots.csv", _memoryInventoryParser.ParseSlots, pc.MemorySlots);
                 TryParseList(dir, section, "_MemoryArraySummary.csv", _memoryInventoryParser.ParseArraySummary, pc.MemoryArraySummaries);

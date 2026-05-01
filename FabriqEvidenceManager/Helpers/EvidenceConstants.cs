@@ -168,6 +168,7 @@ public static class EvidenceConstants
         ["23"] = new("Security Baseline"),
         ["25"] = new("Certificates"),
         ["26"] = new("Battery Report"),
+        ["27"] = new("Environment Variables"),
         ["29"] = new("Memory Slots & Array"),
         ["31"] = new("Hardware Identifiers"),
     };

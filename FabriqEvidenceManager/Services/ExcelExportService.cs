@@ -52,6 +52,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor LicenseHeaderBg = XLColor.FromHtml("#7B1FA2");    // 紫: ライセンス監査
     private static readonly XLColor HwIdHeaderBg = XLColor.FromHtml("#455A64");       // 濃グレー青: HW 識別子
     private static readonly XLColor MemoryHeaderBg = XLColor.FromHtml("#00838F");     // 青緑: メモリ
+    private static readonly XLColor EnvVarHeaderBg = XLColor.FromHtml("#5D4037");     // 茶: 環境変数
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
@@ -214,6 +215,13 @@ public sealed class ExcelExportService : IExcelExportService
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteHardwareIdentifiersSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 10: 環境変数 (M3 §27: N 行/PC、Machine + User 混在) ----
+        if (pcEvidences.Any(pc => pc.EnvironmentVariables.Count > 0))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteEnvironmentVariablesSheet(workbook, pcEvidences);
         }
 
         // 証明書 (§25) は N 行/PC のため main ではなく pc_details/ 側に出力する
@@ -2195,6 +2203,40 @@ public sealed class ExcelExportService : IExcelExportService
             if (se.SecurityStatus.HasValue) ws.Cell(row, 26).Value = se.SecurityStatus.Value;
             if (se.LockPresent.HasValue) ws.Cell(row, 27).Value = se.LockPresent.Value;
         }
+    }
+
+    // ================================================================
+    // Sheet 10: 環境変数 (M3 §27: Machine + User 混在の N 行/PC)
+    // ================================================================
+
+    /// <summary>
+    /// 環境変数シート (PC名 / Scope / Name / Value) を 1 シートに集約。
+    /// Path 系の長文値は ExcelCellMaxChars を超え得るため TruncateForCell で安全化。
+    /// 単一セクションのため AutoFilter + ApplyStyles を通常通り適用。
+    /// </summary>
+    private static void WriteEnvironmentVariablesSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("環境変数");
+        ws.TabColor = EnvVarHeaderBg;
+
+        var headers = new[] { "PC名 (計画|実)", "Scope", "Name", "Value" };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], EnvVarHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var ev in pc.EnvironmentVariables)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = ev.Scope;
+                ws.Cell(row, 3).Value = ev.Name;
+                ws.Cell(row, 4).Value = TruncateForCell(ev.Value);
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
     }
 
     private static void WriteSecurityBaselineSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)

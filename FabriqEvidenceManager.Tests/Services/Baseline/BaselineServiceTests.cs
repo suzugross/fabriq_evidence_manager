@@ -135,7 +135,8 @@ public class BaselineServiceTests
         var batteryParser = new BatteryReportParserService();
         var hwIdParser = new HardwareIdentifiersParserService();
         var memInvParser = new MemoryInventoryParserService();
-        var parser = new EvidenceParserService(winParser, officeParser, sbParser, certParser, batteryParser, hwIdParser, memInvParser);
+        var envVarParser = new EnvironmentVariablesParserService();
+        var parser = new EvidenceParserService(winParser, officeParser, sbParser, certParser, batteryParser, hwIdParser, memInvParser, envVarParser);
         var checklistParser = new ChecklistParserService();
 
         var comparators = new IBaselineComparator[]
