@@ -50,6 +50,13 @@ public sealed partial class PcDetailViewModel : ObservableObject
     public bool HasRestorePoints => Pc.RestorePoints.Count > 0;
     public bool HasDefenderStatus => Pc.DefenderStatus is not null;
     public bool HasWindowsUpdates => Pc.WindowsUpdates.Count > 0;
+    public bool HasHardwareIdentifiers => Pc.HardwareIdentifiers is not null;
+    // §31 サブブロックは BoolToVis が bool 専用のため object 参照ではなく
+    // bool フラグを経由する (各 probe 失敗時に対応ブロックを自動非表示)
+    public bool HasHwComputerSystem        => Pc.HardwareIdentifiers?.ComputerSystem is not null;
+    public bool HasHwComputerSystemProduct => Pc.HardwareIdentifiers?.ComputerSystemProduct is not null;
+    public bool HasHwBaseBoard             => Pc.HardwareIdentifiers?.BaseBoard is not null;
+    public bool HasHwSystemEnclosure       => Pc.HardwareIdentifiers?.SystemEnclosure is not null;
 
     // ---- AUTO CAPTURE プレビュー画像 ----
 

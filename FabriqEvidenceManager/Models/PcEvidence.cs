@@ -198,6 +198,14 @@ public sealed partial class PcEvidence : ObservableObject
     [ObservableProperty]
     private BatteryReportData? _batteryReport;
 
+    /// <summary>
+    /// ハードウェア識別子 (evidence_config v1.6.0+ §31): Win32_ComputerSystem /
+    /// Win32_ComputerSystemProduct / Win32_BaseBoard / Win32_SystemEnclosure。
+    /// §10 SerialNumber の audit 突合 (フォールバック警告時の補助情報) にも利用される。
+    /// </summary>
+    [ObservableProperty]
+    private HardwareIdentifiersData? _hardwareIdentifiers;
+
     // ---- ライセンス判定プロパティ (DataGrid / 監査用) ----
 
     /// <summary>

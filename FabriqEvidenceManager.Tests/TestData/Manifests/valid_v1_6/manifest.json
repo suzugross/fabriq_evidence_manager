@@ -1,0 +1,348 @@
+﻿{
+    "schemaVersion":  1,
+    "manifestType":  "fabriq-evidence-manifest",
+    "evidenceConfigVersion":  "1.6.0",
+    "fabriqKernelVersion":  "3.0.0",
+    "collectedAt":  "2026-04-30T21:35:03+09:00",
+    "computerName":  "ECRI-PC19V3",
+    "hardwareUniqueId":  "T2NXCV06Y22208C",
+    "selectedNewPcName":  "NEW-PC-01",
+    "workerName":  "鈴木ブルトン",
+    "sections":  [
+                     {
+                         "id":  "01",
+                         "title":  "System Basic Info",
+                         "files":  [
+                                       "01_SystemInfo.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  1328
+                     },
+                     {
+                         "id":  "02",
+                         "title":  "Local Users (CSV)",
+                         "files":  [
+                                       "02_LocalUsers.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  479
+                     },
+                     {
+                         "id":  "03",
+                         "title":  "Local Groups (CSV)",
+                         "files":  [
+                                       "03_LocalGroups.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  31
+                     },
+                     {
+                         "id":  "04",
+                         "title":  "Local Group Members (CSV)",
+                         "files":  [
+                                       "04_LocalGroupMembers.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  449
+                     },
+                     {
+                         "id":  "05",
+                         "title":  "Domain / Azure AD Status",
+                         "files":  [
+                                       "05_DomainStatus.txt",
+                                       "05_UserProfiles.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  1748
+                     },
+                     {
+                         "id":  "06",
+                         "title":  "Network Settings (CSV)",
+                         "files":  [
+                                       "06_NetworkConfig.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  414
+                     },
+                     {
+                         "id":  "07",
+                         "title":  "Printers / Ports List (CSV)",
+                         "files":  [
+                                       "07_Printers.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  43
+                     },
+                     {
+                         "id":  "08",
+                         "title":  "BitLocker Status",
+                         "files":  [
+                                       "08_BitLocker.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  1135
+                     },
+                     {
+                         "id":  "8b",
+                         "title":  "Disk \u0026 Partition Info (CSV)",
+                         "files":  [
+                                       "08b_Disks.csv",
+                                       "08b_Partitions.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  1999
+                     },
+                     {
+                         "id":  "09",
+                         "title":  "MAC Address List (CSV)",
+                         "files":  [
+                                       "09_MacAddress.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  90
+                     },
+                     {
+                         "id":  "10",
+                         "title":  "PC Serial Number",
+                         "files":  [
+                                       "10_SerialNumber.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  234
+                     },
+                     {
+                         "id":  "11",
+                         "title":  "Installed Software List (CSV)",
+                         "files":  [
+                                       "11_DesktopApps.csv",
+                                       "11_StoreApps.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  825
+                     },
+                     {
+                         "id":  "12",
+                         "title":  "Firewall Status (CSV)",
+                         "files":  [
+                                       "12_FirewallProfiles.csv",
+                                       "12_FirewallRules.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  2569
+                     },
+                     {
+                         "id":  "13",
+                         "title":  "Windows Optional Features (CSV)",
+                         "files":  [
+                                       "13_OptionalFeatures.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  8780
+                     },
+                     {
+                         "id":  "14",
+                         "title":  "Server Roles \u0026 Features (CSV)",
+                         "files":  [
+
+                                   ],
+                         "status":  "Skipped",
+                         "reason":  "Client OS detected (Server-only section)",
+                         "elapsedMs":  18
+                     },
+                     {
+                         "id":  "15",
+                         "title":  "Power Settings",
+                         "files":  [
+                                       "15_PowerSettings.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  1526
+                     },
+                     {
+                         "id":  "16",
+                         "title":  "WiFi Profiles",
+                         "files":  [
+                                       "16_WiFiProfiles.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  400
+                     },
+                     {
+                         "id":  "17",
+                         "title":  "Restore Points (CSV)",
+                         "files":  [
+                                       "17_RestorePoints.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  387
+                     },
+                     {
+                         "id":  "18",
+                         "title":  "Windows Defender Status",
+                         "files":  [
+                                       "18_DefenderStatus.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  643
+                     },
+                     {
+                         "id":  "19",
+                         "title":  "Windows Update History (CSV)",
+                         "files":  [
+                                       "19_WindowsUpdates.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  1872
+                     },
+                     {
+                         "id":  "20",
+                         "title":  "System TEMP Text-Log Backup",
+                         "files":  [
+                                       "20_TempBackup.txt",
+                                       "20_TempBackup/"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  310
+                     },
+                     {
+                         "id":  "21",
+                         "title":  "Windows License / Activation Status",
+                         "files":  [
+                                       "21_WindowsLicense.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  43040
+                     },
+                     {
+                         "id":  "22",
+                         "title":  "Office License / Activation Status",
+                         "files":  [
+                                       "22_OfficeLicense.txt",
+                                       "22_OfficeVnextLicenses.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  5753
+                     },
+                     {
+                         "id":  "23",
+                         "title":  "Security Baseline",
+                         "files":  [
+                                       "23_SecurityBaseline.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  506
+                     },
+                     {
+                         "id":  "24",
+                         "title":  "Group Policy Report",
+                         "files":  [
+                                       "24_GroupPolicySummary.txt",
+                                       "24_GroupPolicy.html"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  8642
+                     },
+                     {
+                         "id":  "25",
+                         "title":  "Certificates (CSV)",
+                         "files":  [
+                                       "25_Certificates.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  263
+                     },
+                     {
+                         "id":  "26",
+                         "title":  "Battery Report",
+                         "files":  [
+                                       "26_BatteryReport.html"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  386
+                     },
+                     {
+                         "id":  "27",
+                         "title":  "Environment Variables (CSV)",
+                         "files":  [
+                                       "27_EnvironmentVariables.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  45
+                     },
+                     {
+                         "id":  "28",
+                         "title":  "Startup Items (CSV)",
+                         "files":  [
+                                       "28_StartupItems.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  2151
+                     },
+                     {
+                         "id":  "29",
+                         "title":  "Memory Slots (CSV)",
+                         "files":  [
+                                       "29_MemorySlots.csv",
+                                       "29b_MemoryArraySummary.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  83
+                     },
+                     {
+                         "id":  "30",
+                         "title":  "PnP Devices (CSV)",
+                         "files":  [
+                                       "30_PnpDevices.csv"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  186589
+                     },
+                     {
+                         "id":  "31",
+                         "title":  "Hardware Identifiers",
+                         "files":  [
+                                       "31_HardwareIdentifiers.txt"
+                                   ],
+                         "status":  "Success",
+                         "reason":  "",
+                         "elapsedMs":  287
+                     }
+                 ],
+    "summary":  {
+                    "sectionCount":  32,
+                    "successCount":  31,
+                    "skippedCount":  1,
+                    "failedCount":  0,
+                    "partialCount":  0
+                }
+}

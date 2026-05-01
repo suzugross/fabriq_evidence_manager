@@ -1,0 +1,27 @@
+
+========================================
+Hardware Identifiers
+========================================
+---- Win32_ComputerSystem ----
+(Win32_ComputerSystem query failed: Access is denied.)
+
+---- Win32_ComputerSystemProduct ----
+Vendor:            Test Vendor
+Name:              Test Model
+Version:           2.0
+IdentifyingNumber: TESTSN-00001
+UUID:              11111111-2222-3333-4444-555555555555
+SKUNumber:
+
+---- Win32_BaseBoard ----
+(Win32_BaseBoard query failed: WMI provider load failure.)
+
+---- Win32_SystemEnclosure ----
+Manufacturer:      Test Vendor
+Model:
+ChassisTypes:      3 (Desktop)
+SerialNumber:      TESTSN-00001
+SMBIOSAssetTag:    No Asset Tag
+AssetTag:
+SecurityStatus:    3
+LockPresent:       False

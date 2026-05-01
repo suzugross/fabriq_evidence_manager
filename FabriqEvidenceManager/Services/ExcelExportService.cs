@@ -30,6 +30,9 @@ public sealed class ExcelExportService : IExcelExportService
     // M14: バッテリ列数 (Health % / Design / FullCharge)
     private const int BatterySubColumnCount = 3;
 
+    // M1 §31: 主要 HW 識別子列数 (HWメーカ / HWモデル / マザーボードSN / SMBIOS UUID)
+    private const int HwIdentifiersSubColumnCount = 4;
+
     // NIC1列あたりのサブ列数 (MAC, アダプタ, 接続名)
     private const int NicSubColumnCount = 3;
 
@@ -44,6 +47,7 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor ChecklistHeaderBg = XLColor.FromHtml("#C55A11");  // オレンジ: チェックリスト
     private static readonly XLColor HistoryHeaderBg = XLColor.FromHtml("#538DD5");    // 水色: 実行履歴
     private static readonly XLColor LicenseHeaderBg = XLColor.FromHtml("#7B1FA2");    // 紫: ライセンス監査
+    private static readonly XLColor HwIdHeaderBg = XLColor.FromHtml("#455A64");       // 濃グレー青: HW 識別子
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
@@ -98,6 +102,7 @@ public sealed class ExcelExportService : IExcelExportService
                            + maxNicCount * NicSubColumnCount
                            + allDriveLetters.Count * DriveSubColumnCount
                            + BatterySubColumnCount
+                           + HwIdentifiersSubColumnCount
                            + 1;   // 管理者メモ列 (末尾)
 
         // ===== STEP 1: PC -> 詳細ファイル相対パスを pre-compute =====
@@ -190,6 +195,13 @@ public sealed class ExcelExportService : IExcelExportService
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteSecurityBaselineSheet(workbook, pcEvidences);
+        }
+
+        // ---- Sheet 8: HW識別子 (1 行/PC、4 ブロック全列) ----
+        if (pcEvidences.Any(pc => pc.HardwareIdentifiers is not null))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteHardwareIdentifiersSheet(workbook, pcEvidences);
         }
 
         // 証明書 (§25) は N 行/PC のため main ではなく pc_details/ 側に出力する
@@ -410,6 +422,12 @@ public sealed class ExcelExportService : IExcelExportService
         SetHeaderCell(ws, headerRow, col++, "設計容量 (mWh)", LicenseHeaderBg);
         SetHeaderCell(ws, headerRow, col++, "満充電容量 (mWh)", LicenseHeaderBg);
 
+        // M1 §31: HW 識別子主要列 (詳細は HW識別子 シート)
+        SetHeaderCell(ws, headerRow, col++, "HWメーカ", HwIdHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "HWモデル", HwIdHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "マザーボードSN", HwIdHeaderBg);
+        SetHeaderCell(ws, headerRow, col++, "SMBIOS UUID", HwIdHeaderBg);
+
         // 管理者メモ列 (末尾固定、wrap text)
         SetHeaderCell(ws, headerRow, col++, "管理者メモ", BaseHeaderBg);
     }
@@ -605,6 +623,18 @@ public sealed class ExcelExportService : IExcelExportService
         // バッテリ列 (M14: 健全性 % / 設計 mWh / 満充電 mWh)
         WriteBatteryCells(ws, row, col, pc.BatteryReport);
         col += BatterySubColumnCount;
+
+        // M1 §31: HW 識別子主要 4 列。
+        // HWメーカ は ComputerSystem 優先、未取得時は ComputerSystemProduct.Vendor にフォールバック。
+        var hw = pc.HardwareIdentifiers;
+        ws.Cell(row, col++).Value = hw?.ComputerSystem?.Manufacturer
+                                    ?? hw?.ComputerSystemProduct?.Vendor
+                                    ?? string.Empty;
+        ws.Cell(row, col++).Value = hw?.ComputerSystem?.Model
+                                    ?? hw?.ComputerSystemProduct?.Name
+                                    ?? string.Empty;
+        ws.Cell(row, col++).Value = hw?.BaseBoard?.SerialNumber ?? string.Empty;
+        ws.Cell(row, col++).Value = hw?.ComputerSystemProduct?.Uuid ?? string.Empty;
 
         // 管理者メモ (末尾、wrap text、32,767 文字超は truncate)
         var memoCell = ws.Cell(row, col++);
@@ -1895,6 +1925,116 @@ public sealed class ExcelExportService : IExcelExportService
     // ================================================================
 
     private const int SecurityBaselineSheetColumns = 10;
+
+    // ================================================================
+    // Sheet 8: HW識別子 (M1 §31: 4 ブロック全列の 1 行/PC 集約)
+    // ================================================================
+
+    private static void WriteHardwareIdentifiersSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("HW識別子");
+        ws.TabColor = HwIdHeaderBg;
+
+        // 4 ブロック全カラムを prefix 付きで展開 (CS_ / CSP_ / BB_ / SE_)
+        var headers = new[]
+        {
+            "PC名 (計画|実)",
+            // Win32_ComputerSystem
+            "CS_Manufacturer", "CS_Model", "CS_SystemFamily", "CS_SystemSKUNumber",
+            "CS_TotalPhysicalMem", "CS_NumberOfProcessors", "CS_NumberOfLogicalProcessors",
+            // Win32_ComputerSystemProduct
+            "CSP_Vendor", "CSP_Name", "CSP_Version", "CSP_IdentifyingNumber", "CSP_UUID", "CSP_SKUNumber",
+            // Win32_BaseBoard
+            "BB_Manufacturer", "BB_Product", "BB_Version", "BB_SerialNumber", "BB_Tag",
+            // Win32_SystemEnclosure
+            "SE_Manufacturer", "SE_Model", "SE_ChassisTypes", "SE_SerialNumber",
+            "SE_SMBIOSAssetTag", "SE_AssetTag", "SE_SecurityStatus", "SE_LockPresent",
+        };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], HwIdHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            if (pc.HardwareIdentifiers is null) continue;
+            WriteHardwareIdentifiersRow(ws, row, pc, pc.HardwareIdentifiers);
+            row++;
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    private static void WriteHardwareIdentifiersRow(
+        IXLWorksheet ws, int row, PcEvidence pc, HardwareIdentifiersData hw)
+    {
+        ws.Cell(row, 1).Value = pc.PcNameDisplay;
+
+        // Win32_ComputerSystem (col 2-8)
+        var cs = hw.ComputerSystem;
+        if (cs is null)
+        {
+            for (var c = 2; c <= 8; c++) WriteNa(ws.Cell(row, c));
+        }
+        else
+        {
+            ws.Cell(row, 2).Value = cs.Manufacturer;
+            ws.Cell(row, 3).Value = cs.Model;
+            ws.Cell(row, 4).Value = cs.SystemFamily;
+            ws.Cell(row, 5).Value = cs.SystemSKUNumber;
+            ws.Cell(row, 6).Value = cs.TotalPhysicalMem;
+            if (cs.NumberOfProcessors.HasValue) ws.Cell(row, 7).Value = cs.NumberOfProcessors.Value;
+            if (cs.NumberOfLogicalProcessors.HasValue) ws.Cell(row, 8).Value = cs.NumberOfLogicalProcessors.Value;
+        }
+
+        // Win32_ComputerSystemProduct (col 9-14)
+        var csp = hw.ComputerSystemProduct;
+        if (csp is null)
+        {
+            for (var c = 9; c <= 14; c++) WriteNa(ws.Cell(row, c));
+        }
+        else
+        {
+            ws.Cell(row, 9).Value  = csp.Vendor;
+            ws.Cell(row, 10).Value = csp.Name;
+            ws.Cell(row, 11).Value = csp.Version;
+            ws.Cell(row, 12).Value = csp.IdentifyingNumber;
+            ws.Cell(row, 13).Value = csp.Uuid;
+            ws.Cell(row, 14).Value = csp.SkuNumber;
+        }
+
+        // Win32_BaseBoard (col 15-19)
+        var bb = hw.BaseBoard;
+        if (bb is null)
+        {
+            for (var c = 15; c <= 19; c++) WriteNa(ws.Cell(row, c));
+        }
+        else
+        {
+            ws.Cell(row, 15).Value = bb.Manufacturer;
+            ws.Cell(row, 16).Value = bb.Product;
+            ws.Cell(row, 17).Value = bb.Version;
+            ws.Cell(row, 18).Value = bb.SerialNumber;
+            ws.Cell(row, 19).Value = bb.Tag;
+        }
+
+        // Win32_SystemEnclosure (col 20-27)
+        var se = hw.SystemEnclosure;
+        if (se is null)
+        {
+            for (var c = 20; c <= 27; c++) WriteNa(ws.Cell(row, c));
+        }
+        else
+        {
+            ws.Cell(row, 20).Value = se.Manufacturer;
+            ws.Cell(row, 21).Value = se.Model;
+            ws.Cell(row, 22).Value = se.ChassisTypes;
+            ws.Cell(row, 23).Value = se.SerialNumber;
+            ws.Cell(row, 24).Value = se.SmbiosAssetTag;
+            ws.Cell(row, 25).Value = se.AssetTag;
+            if (se.SecurityStatus.HasValue) ws.Cell(row, 26).Value = se.SecurityStatus.Value;
+            if (se.LockPresent.HasValue) ws.Cell(row, 27).Value = se.LockPresent.Value;
+        }
+    }
 
     private static void WriteSecurityBaselineSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
     {

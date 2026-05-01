@@ -1,0 +1,37 @@
+﻿
+========================================
+Hardware Identifiers
+========================================
+---- Win32_ComputerSystem ----
+Manufacturer:      ASUSTeK COMPUTER INC.
+Model:             ASUS EXPERTBOOK B1402CVA_B1402CVA
+SystemFamily:      ASUS EXPERTBOOK
+SystemSKUNumber:    
+TotalPhysicalMem:  15.63 GB
+NumberOfProcessors: 1
+NumberOfLogicalProcessors: 12
+
+---- Win32_ComputerSystemProduct ----
+Vendor:            ASUSTeK COMPUTER INC.
+Name:              ASUS EXPERTBOOK B1402CVA_B1402CVA
+Version:           1.0
+IdentifyingNumber: T2NXCV06Y22208C
+UUID:              99ACFEAA-AB7C-8C4D-8E4D-35A66EAEFE05
+SKUNumber:         
+
+---- Win32_BaseBoard ----
+Manufacturer:      ASUSTeK COMPUTER INC.
+Product:           B1402CVA
+Version:           1.0
+SerialNumber:      T206NXCV001M52MB
+Tag:               Base Board
+
+---- Win32_SystemEnclosure ----
+Manufacturer:      ASUSTeK COMPUTER INC.
+Model:             
+ChassisTypes:      10 (Notebook)
+SerialNumber:      T2NXCV06Y22208C
+SMBIOSAssetTag:    No Asset Tag
+AssetTag:          
+SecurityStatus:    3
+LockPresent:       False

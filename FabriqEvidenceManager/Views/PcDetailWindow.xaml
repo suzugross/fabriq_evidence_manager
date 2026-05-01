@@ -741,6 +741,146 @@
                             </DataGrid>
 
                             <!-- ============================================ -->
+                            <!-- セクション: ハードウェア識別子 (§31) -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="HARDWARE IDENTIFIERS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,14,0,6"
+                                       Visibility="{Binding HasHardwareIdentifiers, Converter={StaticResource BoolToVis}}"/>
+                            <StackPanel Margin="0,0,0,4"
+                                        Visibility="{Binding HasHardwareIdentifiers, Converter={StaticResource BoolToVis}}">
+                                <!-- Win32_ComputerSystem -->
+                                <TextBlock Text="Win32_ComputerSystem" FontSize="10" Foreground="#999999" Margin="0,0,0,2"
+                                           Visibility="{Binding HasHwComputerSystem, Converter={StaticResource BoolToVis}}"/>
+                                <Grid Margin="0,0,0,6"
+                                      Visibility="{Binding HasHwComputerSystem, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Manufacturer" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.ComputerSystem.Manufacturer}" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Model" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.ComputerSystem.Model}" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SystemFamily" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.ComputerSystem.SystemFamily}" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="SKUNumber" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.ComputerSystem.SystemSKUNumber}" FontSize="11"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="TotalPhysicalMem" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.ComputerSystem.TotalPhysicalMem}" FontSize="11"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="Processors (物理/論理)" FontSize="10" Foreground="#888"/>
+                                    <StackPanel Grid.Row="2" Grid.Column="3" Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Pc.HardwareIdentifiers.ComputerSystem.NumberOfProcessors}" FontSize="11"/>
+                                        <TextBlock Text=" / " FontSize="11" Foreground="#999"/>
+                                        <TextBlock Text="{Binding Pc.HardwareIdentifiers.ComputerSystem.NumberOfLogicalProcessors}" FontSize="11"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Win32_ComputerSystemProduct -->
+                                <TextBlock Text="Win32_ComputerSystemProduct" FontSize="10" Foreground="#999999" Margin="0,0,0,2"
+                                           Visibility="{Binding HasHwComputerSystemProduct, Converter={StaticResource BoolToVis}}"/>
+                                <Grid Margin="0,0,0,6"
+                                      Visibility="{Binding HasHwComputerSystemProduct, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Vendor" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.ComputerSystemProduct.Vendor}" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Name" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.ComputerSystemProduct.Name}" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="IdentifyingNumber" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.ComputerSystemProduct.IdentifyingNumber}" FontSize="11" FontFamily="Consolas"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Version" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.ComputerSystemProduct.Version}" FontSize="11"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="UUID" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.ComputerSystemProduct.Uuid}" FontSize="11" FontFamily="Consolas"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="SKUNumber" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.ComputerSystemProduct.SkuNumber}" FontSize="11"/>
+                                </Grid>
+
+                                <!-- Win32_BaseBoard -->
+                                <TextBlock Text="Win32_BaseBoard (record-only SN)" FontSize="10" Foreground="#999999" Margin="0,0,0,2"
+                                           Visibility="{Binding HasHwBaseBoard, Converter={StaticResource BoolToVis}}"/>
+                                <Grid Margin="0,0,0,6"
+                                      Visibility="{Binding HasHwBaseBoard, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Manufacturer" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.BaseBoard.Manufacturer}" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Product" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.BaseBoard.Product}" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SerialNumber" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.BaseBoard.SerialNumber}" FontSize="11" FontFamily="Consolas"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Version / Tag" FontSize="10" Foreground="#888"/>
+                                    <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Pc.HardwareIdentifiers.BaseBoard.Version}" FontSize="11"/>
+                                        <TextBlock Text=" / " FontSize="11" Foreground="#999"/>
+                                        <TextBlock Text="{Binding Pc.HardwareIdentifiers.BaseBoard.Tag}" FontSize="11"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Win32_SystemEnclosure -->
+                                <TextBlock Text="Win32_SystemEnclosure" FontSize="10" Foreground="#999999" Margin="0,0,0,2"
+                                           Visibility="{Binding HasHwSystemEnclosure, Converter={StaticResource BoolToVis}}"/>
+                                <Grid Margin="0,0,0,6"
+                                      Visibility="{Binding HasHwSystemEnclosure, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                        <RowDefinition/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Manufacturer" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.Manufacturer}" FontSize="11"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="ChassisTypes" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.ChassisTypes}" FontSize="11"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="SerialNumber" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.SerialNumber}" FontSize="11" FontFamily="Consolas"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="Model" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.Model}" FontSize="11"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="SMBIOSAssetTag" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.SmbiosAssetTag}" FontSize="11"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="AssetTag" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.AssetTag}" FontSize="11"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="SecurityStatus" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.SecurityStatus}" FontSize="11"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="2" Text="LockPresent" FontSize="10" Foreground="#888"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding Pc.HardwareIdentifiers.SystemEnclosure.LockPresent}" FontSize="11"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- ============================================ -->
                             <!-- セクション: HOSTLIST 突合結果 -->
                             <!-- ============================================ -->
                             <TextBlock Text="HOSTLIST VERIFICATION"

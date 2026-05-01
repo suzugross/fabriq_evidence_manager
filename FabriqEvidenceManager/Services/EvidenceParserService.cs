@@ -48,19 +48,22 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
     private readonly ISecurityBaselineParserService _securityBaselineParser;
     private readonly ICertificatesParserService _certificatesParser;
     private readonly IBatteryReportParserService _batteryReportParser;
+    private readonly IHardwareIdentifiersParserService _hardwareIdentifiersParser;
 
     public EvidenceParserService(
         IWindowsLicenseParserService windowsLicenseParser,
         IOfficeLicenseParserService officeLicenseParser,
         ISecurityBaselineParserService securityBaselineParser,
         ICertificatesParserService certificatesParser,
-        IBatteryReportParserService batteryReportParser)
+        IBatteryReportParserService batteryReportParser,
+        IHardwareIdentifiersParserService hardwareIdentifiersParser)
     {
         _windowsLicenseParser = windowsLicenseParser;
         _officeLicenseParser = officeLicenseParser;
         _securityBaselineParser = securityBaselineParser;
         _certificatesParser = certificatesParser;
         _batteryReportParser = batteryReportParser;
+        _hardwareIdentifiersParser = hardwareIdentifiersParser;
     }
 
     // ================================================================
@@ -141,6 +144,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
             case "23": TryParseSingle(dir, section, "_SecurityBaseline.txt", _securityBaselineParser.Parse, v => pc.SecurityBaseline = v); break;
             case "25": TryParseList(dir, section, "_Certificates.csv", _certificatesParser.Parse, pc.Certificates); break;
             case "26": TryParseSingle(dir, section, "_BatteryReport.html", _batteryReportParser.Parse, v => pc.BatteryReport = v); break;
+            case "31": TryParseSingle(dir, section, "_HardwareIdentifiers.txt", _hardwareIdentifiersParser.Parse, v => pc.HardwareIdentifiers = v); break;
             // 01/06/07/08/11/14/20: PopulateDetails で PcEvidence に直接格納する parse 対象なし
             //   (HostlistService / BaselineService / EvidenceVerificationService が on-demand で読む)
             default:

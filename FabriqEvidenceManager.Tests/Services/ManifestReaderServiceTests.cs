@@ -85,4 +85,29 @@ public class ManifestReaderServiceTests
         Assert.Single(manifest.Sections);
         Assert.Equal(SectionStatus.Failed, manifest.Sections[0].Status);
     }
+
+    [Fact]
+    public void Read_V1_6_0Manifest_ParsesAllSectionsIncludingNewIds()
+    {
+        // evidence_config v1.6.0 / kernel 3.0.0 で追加された §24,27,28,29,30,31 を含む
+        // 32 セクション manifest が schemaVersion=1 互換で読めることを保証する。
+        var dir = TestPaths.GetTestDataDirectory("Manifests", "valid_v1_6");
+
+        var manifest = _sut.Read(dir);
+
+        Assert.Equal(1, manifest.SchemaVersion);
+        Assert.Equal("1.6.0", manifest.EvidenceConfigVersion);
+        Assert.Equal("3.0.0", manifest.FabriqKernelVersion);
+        Assert.Equal(32, manifest.Summary.SectionCount);
+        Assert.Equal(31, manifest.Summary.SuccessCount);
+        Assert.Equal(1, manifest.Summary.SkippedCount);
+
+        foreach (var id in new[] { "24", "27", "28", "29", "30", "31" })
+        {
+            var section = manifest.Sections.FirstOrDefault(s => s.Id == id);
+            Assert.NotNull(section);
+            Assert.Equal(SectionStatus.Success, section!.Status);
+            Assert.NotEmpty(section.RegularFiles);
+        }
+    }
 }

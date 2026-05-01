@@ -30,6 +30,7 @@ public partial class App : Application
         services.AddSingleton<ISecurityBaselineParserService, SecurityBaselineParserService>();
         services.AddSingleton<ICertificatesParserService, CertificatesParserService>();
         services.AddSingleton<IBatteryReportParserService, BatteryReportParserService>();
+        services.AddSingleton<IHardwareIdentifiersParserService, HardwareIdentifiersParserService>();
         services.AddSingleton<IEvidenceParserService, EvidenceParserService>();
         services.AddSingleton<IHostlistService, HostlistService>();
         services.AddSingleton<IEvidenceVerificationService, EvidenceVerificationService>();
