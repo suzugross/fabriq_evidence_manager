@@ -108,6 +108,19 @@ public sealed partial class PcDetailViewModel : ObservableObject
         }
     }
 
+    // §11 インストール済みアプリ (Desktop/Store を別々に扱う設計)
+    public bool HasDesktopApps => Pc.DesktopApps.Count > 0;
+    public bool HasStoreApps   => Pc.StoreApps.Count > 0;
+
+    /// <summary>
+    /// Desktop/Store のアプリ件数表示。CSV 行数と Name 一意件数を併記する
+    /// (Wow6432Node 重複登録 / Get-AppxPackage マルチユーザ重複でズレるため)。
+    /// 重複ゼロのときは一意件数の併記を省略。ベースライン突合の TotalBaselineCount
+    /// は Name dedup 後の値 = 一意件数と同じになる仕様 (UI とロジックの数値が揃う)。
+    /// </summary>
+    public string DesktopAppsCountDisplay => Helpers.InstalledAppCountFormatter.Format(Pc.DesktopApps);
+    public string StoreAppsCountDisplay   => Helpers.InstalledAppCountFormatter.Format(Pc.StoreApps);
+
     // §30 PnP デバイス
     public bool HasPnpDevices => Pc.PnpDevices.Count > 0;
 

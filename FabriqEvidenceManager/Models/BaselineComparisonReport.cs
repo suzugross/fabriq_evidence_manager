@@ -61,8 +61,11 @@ public sealed class BaselineComparisonReport
     /// <summary>チェックリストの照合結果 (OverallStatus + VerifyItems)</summary>
     public ChecklistComparisonResult? ChecklistComparison { get; set; }
 
-    /// <summary>インストール済みアプリの照合結果</summary>
-    public InstalledAppsComparisonResult? InstalledAppsComparison { get; set; }
+    /// <summary>デスクトップアプリの照合結果 (§11 part 1: 11_DesktopApps.csv)</summary>
+    public InstalledAppsComparisonResult? DesktopAppsComparison { get; set; }
+
+    /// <summary>ストアアプリの照合結果 (§11 part 2: 11_StoreApps.csv)</summary>
+    public InstalledAppsComparisonResult? StoreAppsComparison { get; set; }
 
     /// <summary>Windows / Office ライセンス情報の照合結果 (Phase 4 新規追加)</summary>
     public LicenseComparisonResult? LicenseComparison { get; set; }
@@ -78,7 +81,8 @@ public sealed class BaselineComparisonReport
         Items.Count(i => i.MatchStatus != BaselineMatchStatus.Match)
         + (SystemInfoComparison?.MismatchCount ?? 0)
         + (ChecklistComparison?.MismatchCount ?? 0)
-        + (InstalledAppsComparison?.MismatchCount ?? 0)
+        + (DesktopAppsComparison?.MismatchCount ?? 0)
+        + (StoreAppsComparison?.MismatchCount ?? 0)
         + (LicenseComparison?.MismatchCount ?? 0)
         + (DomainStatusComparison?.MismatchCount ?? 0);
 
@@ -87,7 +91,8 @@ public sealed class BaselineComparisonReport
         AllMatch
         && (SystemInfoComparison?.AllMatch ?? true)
         && (ChecklistComparison?.AllMatch ?? true)
-        && (InstalledAppsComparison?.AllMatch ?? true)
+        && (DesktopAppsComparison?.AllMatch ?? true)
+        && (StoreAppsComparison?.AllMatch ?? true)
         && (LicenseComparison?.AllMatch ?? true)
         && (DomainStatusComparison?.AllMatch ?? true);
 }

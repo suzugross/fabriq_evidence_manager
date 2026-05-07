@@ -231,6 +231,18 @@ public sealed partial class PcEvidence : ObservableObject
     public List<StartupItemEntry> StartupItems { get; } = [];
 
     /// <summary>
+    /// デスクトップアプリ (§11 part 1: 11_DesktopApps.csv 由来)。
+    /// 4 列構成 (Name / Version / Publisher / InstallDate) を保持。
+    /// </summary>
+    public List<InstalledAppEntry> DesktopApps { get; } = [];
+
+    /// <summary>
+    /// ストアアプリ (§11 part 2: 11_StoreApps.csv 由来)。
+    /// 3 列構成 (Name / Version / Publisher) — InstallDate なし。
+    /// </summary>
+    public List<InstalledAppEntry> StoreApps { get; } = [];
+
+    /// <summary>
     /// Plug and Play デバイス (evidence_config v1.6.0+ §30)。Win32_PnPEntity 由来の全デバイス。
     /// 1 PC あたり 200〜400 件規模 (現在接続中 Present=true + 過去キャッシュ Present=false の混在)。
     /// </summary>

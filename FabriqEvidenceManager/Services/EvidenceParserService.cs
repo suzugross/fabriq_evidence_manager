@@ -144,6 +144,10 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
                 break;
             case "09": TryParseList(dir, section, "_MacAddress.csv", ParseMacAddresses, pc.MacAddresses); break;
             case "10": ApplySerialNumberDetail(pc, dir, section); break;
+            case "11":
+                TryParseList(dir, section, "_DesktopApps.csv", ParseDesktopApps, pc.DesktopApps);
+                TryParseList(dir, section, "_StoreApps.csv", ParseStoreApps, pc.StoreApps);
+                break;
             case "12":
                 TryParseList(dir, section, "_FirewallProfiles.csv", ParseFirewallProfiles, pc.FirewallProfiles);
                 TryParseList(dir, section, "_FirewallRules.csv", ParseFirewallRules, pc.FirewallRules);
@@ -168,7 +172,7 @@ public sealed partial class EvidenceParserService : IEvidenceParserService
                 break;
             case "30": TryParseList(dir, section, "_PnpDevices.csv", _pnpDevicesParser.Parse, pc.PnpDevices); break;
             case "31": TryParseSingle(dir, section, "_HardwareIdentifiers.txt", _hardwareIdentifiersParser.Parse, v => pc.HardwareIdentifiers = v); break;
-            // 01/06/07/08/11/14/20: PopulateDetails で PcEvidence に直接格納する parse 対象なし
+            // 01/06/07/08/14/20: PopulateDetails で PcEvidence に直接格納する parse 対象なし
             //   (HostlistService / BaselineService / EvidenceVerificationService が on-demand で読む)
             default:
                 // KnownSections に無い未知 ID は raw として捕捉 (M5: 前方互換)

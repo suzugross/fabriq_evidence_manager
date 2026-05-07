@@ -741,6 +741,91 @@
                             </DataGrid>
 
                             <!-- ============================================ -->
+                            <!-- セクション: デスクトップアプリ (§11 part 1) -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,14,0,6"
+                                       Visibility="{Binding HasDesktopApps, Converter={StaticResource BoolToVis}}">
+                                <Run Text="DESKTOP APPS"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding DesktopAppsCountDisplay, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding Pc.DesktopApps}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="240"
+                                      EnableRowVirtualization="True"
+                                      Visibility="{Binding HasDesktopApps, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="アプリ名" Binding="{Binding Name}" Width="280">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                <Setter Property="ToolTip" Value="{Binding Name}"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="バージョン" Binding="{Binding Version}" Width="120"/>
+                                    <DataGridTextColumn Header="発行元" Binding="{Binding Publisher}" Width="200">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                <Setter Property="ToolTip" Value="{Binding Publisher}"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="インストール日" Binding="{Binding InstallDate}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: ストアアプリ (§11 part 2) -->
+                            <!-- ============================================ -->
+                            <TextBlock FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,14,0,6"
+                                       Visibility="{Binding HasStoreApps, Converter={StaticResource BoolToVis}}">
+                                <Run Text="STORE APPS"/>
+                                <Run Text=" (" Foreground="#999999"/><Run Text="{Binding StoreAppsCountDisplay, Mode=OneWay}" Foreground="#999999"/><Run Text=")" Foreground="#999999"/>
+                            </TextBlock>
+                            <DataGrid ItemsSource="{Binding Pc.StoreApps}"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                      BorderThickness="1" BorderBrush="#E0E0E0"
+                                      RowHeight="24" FontSize="11"
+                                      MaxHeight="240"
+                                      EnableRowVirtualization="True"
+                                      Visibility="{Binding HasStoreApps, Converter={StaticResource BoolToVis}}"
+                                      Margin="0,0,0,4">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="アプリ名" Binding="{Binding Name}" Width="320">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                <Setter Property="ToolTip" Value="{Binding Name}"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="バージョン" Binding="{Binding Version}" Width="140"/>
+                                    <DataGridTextColumn Header="発行元 (Publisher ID)" Binding="{Binding Publisher}" Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                                <Setter Property="ToolTip" Value="{Binding Publisher}"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- ============================================ -->
                             <!-- セクション: メモリインベントリ (§29) -->
                             <!-- ============================================ -->
                             <TextBlock Text="MEMORY INVENTORY"
@@ -1546,9 +1631,9 @@
                             </ItemsControl>
 
                             <!-- ============================================ -->
-                            <!-- セクション: ベースライン突合 — インストール済みアプリ -->
+                            <!-- セクション: ベースライン突合 — デスクトップアプリ (§11 part 1) -->
                             <!-- ============================================ -->
-                            <TextBlock Text="BASELINE — INSTALLED APPS"
+                            <TextBlock Text="BASELINE — DESKTOP APPS"
                                        FontSize="10" FontWeight="Bold"
                                        Foreground="#757B82"
                                        Margin="0,8,0,4"
@@ -1559,22 +1644,121 @@
                                        Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
                                 <TextBlock.Text>
                                     <MultiBinding StringFormat="一致: {0}件 / ベースライン: {1}件 / 対象PC: {2}件 / 差分: {3}件">
-                                        <Binding Path="BaselineReport.InstalledAppsComparison.MatchCount" FallbackValue="0"/>
-                                        <Binding Path="BaselineReport.InstalledAppsComparison.TotalBaselineCount" FallbackValue="0"/>
-                                        <Binding Path="BaselineReport.InstalledAppsComparison.TotalActualCount" FallbackValue="0"/>
-                                        <Binding Path="BaselineReport.InstalledAppsComparison.MismatchCount" FallbackValue="0"/>
+                                        <Binding Path="BaselineReport.DesktopAppsComparison.MatchCount" FallbackValue="0"/>
+                                        <Binding Path="BaselineReport.DesktopAppsComparison.TotalBaselineCount" FallbackValue="0"/>
+                                        <Binding Path="BaselineReport.DesktopAppsComparison.TotalActualCount" FallbackValue="0"/>
+                                        <Binding Path="BaselineReport.DesktopAppsComparison.MismatchCount" FallbackValue="0"/>
                                     </MultiBinding>
                                 </TextBlock.Text>
                             </TextBlock>
 
                             <!-- 差分0件の場合 -->
-                            <TextBlock Text="すべてのアプリが一致しています"
+                            <TextBlock Text="すべてのデスクトップアプリが一致しています"
                                        FontSize="9" Foreground="#2E7D32" FontWeight="Bold"
                                        Margin="0,0,0,4"
-                                       Visibility="{Binding BaselineReport.InstalledAppsComparison.AllMatch, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
+                                       Visibility="{Binding BaselineReport.DesktopAppsComparison.AllMatch, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
 
                             <!-- 差分リスト (Mismatch / Missing のみ) -->
-                            <ItemsControl ItemsSource="{Binding BaselineReport.InstalledAppsComparison.Items}"
+                            <ItemsControl ItemsSource="{Binding BaselineReport.DesktopAppsComparison.Items}"
+                                          Margin="0,0,0,6"
+                                          Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="80"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- 判定バッジ -->
+                                            <TextBlock Grid.Column="0" FontSize="9" FontWeight="Bold"
+                                                       Margin="0,0,6,0" MinWidth="28">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="OK"/>
+                                                        <Setter Property="Foreground" Value="#2E7D32"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Text" Value="NG"/>
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="NoActual">
+                                                                <Setter Property="Text" Value="---"/>
+                                                                <Setter Property="Foreground" Value="#E65100"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="NoExpected">
+                                                                <Setter Property="Text" Value="NEW"/>
+                                                                <Setter Property="Foreground" Value="#1565C0"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+
+                                            <!-- アプリ名 -->
+                                            <TextBlock Grid.Column="1" Text="{Binding ItemName}"
+                                                       FontSize="10" Foreground="#333333"
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                            <!-- 期待値 (ベースラインバージョン) -->
+                                            <TextBlock Grid.Column="2" Text="{Binding Expected}"
+                                                       FontSize="9" Foreground="#888888"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="4,0,0,0"/>
+
+                                            <!-- 実測値 -->
+                                            <TextBlock Grid.Column="3" FontSize="9" Margin="4,0,0,0"
+                                                       Text="{Binding Actual}"
+                                                       TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#888888"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Mismatch">
+                                                                <Setter Property="Foreground" Value="#C62828"/>
+                                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- ============================================ -->
+                            <!-- セクション: ベースライン突合 — ストアアプリ (§11 part 2) -->
+                            <!-- ============================================ -->
+                            <TextBlock Text="BASELINE — STORE APPS"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="#757B82"
+                                       Margin="0,8,0,4"
+                                       Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}"/>
+
+                            <!-- サマリ行 -->
+                            <TextBlock FontSize="9" Foreground="#555555" Margin="0,0,0,4"
+                                       Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="一致: {0}件 / ベースライン: {1}件 / 対象PC: {2}件 / 差分: {3}件">
+                                        <Binding Path="BaselineReport.StoreAppsComparison.MatchCount" FallbackValue="0"/>
+                                        <Binding Path="BaselineReport.StoreAppsComparison.TotalBaselineCount" FallbackValue="0"/>
+                                        <Binding Path="BaselineReport.StoreAppsComparison.TotalActualCount" FallbackValue="0"/>
+                                        <Binding Path="BaselineReport.StoreAppsComparison.MismatchCount" FallbackValue="0"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+
+                            <!-- 差分0件の場合 -->
+                            <TextBlock Text="すべてのストアアプリが一致しています"
+                                       FontSize="9" Foreground="#2E7D32" FontWeight="Bold"
+                                       Margin="0,0,0,4"
+                                       Visibility="{Binding BaselineReport.StoreAppsComparison.AllMatch, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"/>
+
+                            <!-- 差分リスト -->
+                            <ItemsControl ItemsSource="{Binding BaselineReport.StoreAppsComparison.Items}"
                                           Margin="0,0,0,6"
                                           Visibility="{Binding IsBaselineLoaded, Converter={StaticResource BoolToVis}}">
                                 <ItemsControl.ItemTemplate>

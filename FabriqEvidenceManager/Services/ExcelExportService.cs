@@ -59,6 +59,8 @@ public sealed class ExcelExportService : IExcelExportService
     private static readonly XLColor StartupHeaderBg = XLColor.FromHtml("#388E3C");    // 深緑: 自動起動
     private static readonly XLColor PnpHeaderBg = XLColor.FromHtml("#D81B60");        // 濃ピンク: PnP デバイス
     private static readonly XLColor GpHeaderBg = XLColor.FromHtml("#E65100");         // 濃オレンジ: グループポリシー
+    private static readonly XLColor DesktopAppsHeaderBg = XLColor.FromHtml("#3949AB");// 濃藍: デスクトップアプリ
+    private static readonly XLColor StoreAppsHeaderBg = XLColor.FromHtml("#1976D2");  // 青: ストアアプリ
     private static readonly XLColor HeaderFontColor = XLColor.White;
 
     // ステータス色
@@ -281,10 +283,15 @@ public sealed class ExcelExportService : IExcelExportService
                 cancellationToken.ThrowIfCancellationRequested();
                 WriteBaselineChecklistSheet(workbook, single, options.BaselineReports);
             }
-            if (br.InstalledAppsComparison is not null)
+            if (br.DesktopAppsComparison is not null)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                WriteBaselineAppsSheet(workbook, single, options.BaselineReports);
+                WriteBaselineDesktopAppsSheet(workbook, single, options.BaselineReports);
+            }
+            if (br.StoreAppsComparison is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                WriteBaselineStoreAppsSheet(workbook, single, options.BaselineReports);
             }
             if (br.LicenseComparison is not null)
             {
@@ -346,6 +353,16 @@ public sealed class ExcelExportService : IExcelExportService
         {
             cancellationToken.ThrowIfCancellationRequested();
             WriteCertificatesSheet(workbook, single);
+        }
+        if (pc.DesktopApps.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteDesktopAppsSheet(workbook, single);
+        }
+        if (pc.StoreApps.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteStoreAppsSheet(workbook, single);
         }
         // M2 §29 / M3 §27 / M4 §28 / M5 §30: フリート規模で行数が膨大になるため
         // 証明書 (§25) と同じく pc_details/ 側に出力する。
@@ -427,6 +444,8 @@ public sealed class ExcelExportService : IExcelExportService
             || pc.RestorePoints.Count > 0
             || pc.WindowsUpdates.Count > 0
             || pc.Certificates.Count > 0
+            || pc.DesktopApps.Count > 0
+            || pc.StoreApps.Count > 0
             || pc.MemorySlots.Count > 0 || pc.MemoryArraySummaries.Count > 0
             || pc.EnvironmentVariables.Count > 0
             || pc.StartupItems.Count > 0
@@ -1139,13 +1158,38 @@ public sealed class ExcelExportService : IExcelExportService
         ApplyStyles(ws, row - 2, 6);
     }
 
-    /// <summary>ベースライン突合 — インストール済みアプリ (PC ごと集計行 + 差分行)</summary>
-    private static void WriteBaselineAppsSheet(
+    /// <summary>ベースライン突合 — デスクトップアプリ (§11 part 1)。1 PC = 集計行 + 差分行 N。</summary>
+    private static void WriteBaselineDesktopAppsSheet(
         IXLWorkbook workbook,
         IReadOnlyList<PcEvidence> pcEvidences,
         IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
+        => WriteBaselineAppsSheetCore(
+            workbook, pcEvidences, reports,
+            sheetName: "ベースライン_デスクトップアプリ",
+            selector: r => r.DesktopAppsComparison);
+
+    /// <summary>ベースライン突合 — ストアアプリ (§11 part 2)。1 PC = 集計行 + 差分行 N。</summary>
+    private static void WriteBaselineStoreAppsSheet(
+        IXLWorkbook workbook,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports)
+        => WriteBaselineAppsSheetCore(
+            workbook, pcEvidences, reports,
+            sheetName: "ベースライン_ストアアプリ",
+            selector: r => r.StoreAppsComparison);
+
+    /// <summary>
+    /// アプリ系ベースライン突合シートの共通実装 (DRY)。
+    /// シート名 + どの comparison 結果を読むかだけ呼出側で指定する。
+    /// </summary>
+    private static void WriteBaselineAppsSheetCore(
+        IXLWorkbook workbook,
+        IReadOnlyList<PcEvidence> pcEvidences,
+        IReadOnlyDictionary<PcEvidence, BaselineComparisonReport> reports,
+        string sheetName,
+        System.Func<BaselineComparisonReport, InstalledAppsComparisonResult?> selector)
     {
-        var ws = workbook.Worksheets.Add("ベースライン_アプリ");
+        var ws = workbook.Worksheets.Add(sheetName);
 
         SetHeaderCell(ws, 1, 1, "PC名 (計画|実)", BaselineHeaderBg);
         SetHeaderCell(ws, 1, 2, "アプリ名", BaselineHeaderBg);
@@ -1157,8 +1201,8 @@ public sealed class ExcelExportService : IExcelExportService
         foreach (var pc in pcEvidences)
         {
             if (!reports.TryGetValue(pc, out var report)) continue;
-            if (report.InstalledAppsComparison is null) continue;
-            var apps = report.InstalledAppsComparison;
+            var apps = selector(report);
+            if (apps is null) continue;
 
             // 集計行 (1 PC = 1 行)
             ws.Cell(row, 1).Value = pc.PcNameDisplay;
@@ -2580,6 +2624,69 @@ public sealed class ExcelExportService : IExcelExportService
                 cell.Style.Font.FontColor = XLColor.Gray;
                 break;
         }
+    }
+
+    // ================================================================
+    // インストール済みアプリ (§11) — Desktop / Store を別シートに分けて出力
+    // ================================================================
+
+    /// <summary>
+    /// デスクトップアプリシート (PC名 + 4 元列 = 5 列、N 行/PC)。
+    /// 11_DesktopApps.csv は Name / Version / Publisher / InstallDate の 4 列構成。
+    /// </summary>
+    private static void WriteDesktopAppsSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("デスクトップアプリ");
+        ws.TabColor = DesktopAppsHeaderBg;
+
+        var headers = new[] { "PC名 (計画|実)", "アプリ名", "バージョン", "発行元", "インストール日" };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], DesktopAppsHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var app in pc.DesktopApps)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = app.Name;
+                ws.Cell(row, 3).Value = app.Version;
+                ws.Cell(row, 4).Value = app.Publisher;
+                ws.Cell(row, 5).Value = app.InstallDate;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
+    }
+
+    /// <summary>
+    /// ストアアプリシート (PC名 + 3 元列 = 4 列、N 行/PC)。
+    /// 11_StoreApps.csv は Name / Version / Publisher の 3 列構成 (InstallDate なし)。
+    /// </summary>
+    private static void WriteStoreAppsSheet(IXLWorkbook workbook, IReadOnlyList<PcEvidence> pcEvidences)
+    {
+        var ws = workbook.Worksheets.Add("ストアアプリ");
+        ws.TabColor = StoreAppsHeaderBg;
+
+        var headers = new[] { "PC名 (計画|実)", "アプリ名", "バージョン", "発行元 (Publisher ID)" };
+        for (var i = 0; i < headers.Length; i++)
+            SetHeaderCell(ws, 1, i + 1, headers[i], StoreAppsHeaderBg);
+
+        var row = 2;
+        foreach (var pc in pcEvidences)
+        {
+            foreach (var app in pc.StoreApps)
+            {
+                ws.Cell(row, 1).Value = pc.PcNameDisplay;
+                ws.Cell(row, 2).Value = app.Name;
+                ws.Cell(row, 3).Value = app.Version;
+                ws.Cell(row, 4).Value = app.Publisher;
+                row++;
+            }
+        }
+
+        ApplyStyles(ws, row - 2, headers.Length);
     }
 
     // ================================================================

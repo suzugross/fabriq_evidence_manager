@@ -67,10 +67,11 @@ public class BaselineServiceTests
 
         // License は populated
         Assert.NotNull(report.LicenseComparison);
-        // 他カテゴリ (SystemInfo / Checklist / InstalledApps / ExecutionSummary) はデータ無し
+        // 他カテゴリ (SystemInfo / Checklist / DesktopApps / StoreApps / ExecutionSummary) はデータ無し
         Assert.Null(report.SystemInfoComparison);
         Assert.Null(report.ChecklistComparison);
-        Assert.Null(report.InstalledAppsComparison);
+        Assert.Null(report.DesktopAppsComparison);
+        Assert.Null(report.StoreAppsComparison);
         Assert.Empty(report.Items);
     }
 
@@ -81,11 +82,13 @@ public class BaselineServiceTests
 
         var categories = sut.AvailableCategories;
 
-        Assert.Equal(5, categories.Count);
+        // M_v1_6 Phase 2: アプリ系を Desktop / Store の 2 Comparator に分割
+        Assert.Equal(6, categories.Count);
         Assert.Contains(categories, c => c.CategoryId == "ExecutionSummary");
         Assert.Contains(categories, c => c.CategoryId == "SystemInfo");
         Assert.Contains(categories, c => c.CategoryId == "Checklist");
-        Assert.Contains(categories, c => c.CategoryId == "InstalledApps");
+        Assert.Contains(categories, c => c.CategoryId == "DesktopApps");
+        Assert.Contains(categories, c => c.CategoryId == "StoreApps");
         Assert.Contains(categories, c => c.CategoryId == "License");
     }
 
@@ -95,7 +98,7 @@ public class BaselineServiceTests
         // 全 Comparator が IsEnabledByDefault=true なのでデフォルトで全 enable
         var sut = MakeService();
 
-        Assert.Equal(5, sut.EnabledCategoryIds.Count);
+        Assert.Equal(6, sut.EnabledCategoryIds.Count);
     }
 
     [Fact]
@@ -121,11 +124,12 @@ public class BaselineServiceTests
         Assert.NotNull(report.LicenseComparison);
         Assert.Null(report.SystemInfoComparison);
         Assert.Null(report.ChecklistComparison);
-        Assert.Null(report.InstalledAppsComparison);
+        Assert.Null(report.DesktopAppsComparison);
+        Assert.Null(report.StoreAppsComparison);
         Assert.Empty(report.Items);
     }
 
-    /// <summary>5 つの Comparator (License/SystemInfo/Checklist/InstalledApps/ExecutionSummary) を全て登録</summary>
+    /// <summary>6 つの Comparator (License/SystemInfo/Checklist/DesktopApps/StoreApps/ExecutionSummary) を全て登録</summary>
     private static BaselineService MakeService()
     {
         var winParser = new WindowsLicenseParserService();
@@ -147,7 +151,8 @@ public class BaselineServiceTests
             new ExecutionSummaryComparator(checklistParser),
             new SystemInfoComparator(parser),
             new ChecklistComparator(checklistParser),
-            new InstalledAppsComparator(parser),
+            new DesktopAppsComparator(parser),
+            new StoreAppsComparator(parser),
             new LicenseComparator(),
         };
 

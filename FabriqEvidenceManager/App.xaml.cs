@@ -45,7 +45,8 @@ public partial class App : Application
         services.AddSingleton<IBaselineComparator, ExecutionSummaryComparator>();
         services.AddSingleton<IBaselineComparator, SystemInfoComparator>();
         services.AddSingleton<IBaselineComparator, ChecklistComparator>();
-        services.AddSingleton<IBaselineComparator, InstalledAppsComparator>();
+        services.AddSingleton<IBaselineComparator, DesktopAppsComparator>();
+        services.AddSingleton<IBaselineComparator, StoreAppsComparator>();
         services.AddSingleton<IBaselineComparator, LicenseComparator>();
         services.AddSingleton<IBaselineComparator, DomainStatusComparator>();
         services.AddSingleton<IPcMemoService, PcMemoService>();
