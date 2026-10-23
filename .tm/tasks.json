@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "project": "fabriq_evidence_manager",
+  "updatedAt": "2026-10-23T15:52:09+09:00",
+  "tasks": [
+    {
+      "id": "t-0001",
+      "title": "端末別情報表示画面について",
+      "content": "端末個別の詳細情報確認画面にて、要素の上にマウスカーソルを置いたうえでスクロールしてもスクロールできない。それはいいとしても、各情報レイヤーの要素が画面いっぱいにひろがっているため、マウススクロールによるスクロールの余地がほとんどないため、快適にスクロールできるようにしたい。\r\n理想：\r\n・詳細画面自体はマウスでスクロール\r\n・詳細画面内の情報要素のリストはマウスではスクロールさせない（スクロールバーでスクロールさせる。）\r\n※必ずしも上記の理想動作を再現する必要はなく、オペレータが不自由なく詳細画面全体をスクロールできればそれでよい",
+      "claudeNote": "",
+      "status": "未着手",
+      "createdAt": "2026-06-09T23:09:47.048258+09:00",
+      "updatedAt": "2026-06-09T23:13:42.8811707+09:00"
+    },
+    {
+      "id": "t-0002",
+      "title": "自動更新 (30秒) が機能しない",
+      "content": "いつからか自動更新が効かなくなった気がする。「読み込み」ボタンを押すと一覧は更新される。環境差か？\n\n[追記 2026-10-23] 状況: アプリ起動→エビデンスフォルダを選択→チェックを入れる→新しい端末の情報が送られてきても自動では表示されない。読み込みボタン押下で表示される。",
+      "claudeNote": "[2026-10-23 調査結果] 環境差ではなくコード側の問題 (2 点)。\n\n(1) タイマー起動条件のバグ: MainWindowViewModel.OnIsAutoReloadEnabledChanged は「チェックを入れた瞬間に CanLoadEvidence() が true」のときだけタイマーを Start する。フォルダ未選択 or 読み込み中にチェックを入れると、チェックは ON 表示のままタイマーは永久に動かない (後でフォルダを読み込んでも再起動しない)。操作順で再現/非再現が変わるため環境差に見える。\n\n(2) 差分マージの更新漏れ (機能追加に追随していない): RefreshEvidenceAsync の既存PC更新は SerialNumber / 5 パス / HasWarning / MAC / BitLocker しかコピーしていない。最終更新は 7f4352f で、その後に追加された Manifest / ManifestError / ActualComputerName / SerialNumberSource / WindowsLicense / OfficeLicense / 各セクション一覧 / Memo 等は一切反映されない。さらに EvaluateCaution を呼ばないため、自動更新で追加された PC は要確認(黄)判定もされない。→ 実PC名・SN警告・Win認証・Office認証・ステータス列が古いまま。log_uploader のコピー途中を拾うと 'manifest 不在' のまま固定される。\n\n(補足) catch で全例外を握りつぶし、既存PC更新時はステータス表示もないため、動いているかどうか判別できない。\n\n[修正方針案 (ユーザー合意待ち)]\nA: タイマー起動条件修正 + 最終自動更新時刻をステータスに表示\nB: PcEvidence に全プロパティ更新メソッド (UpdateFrom) を追加し差分マージで使用 + 更新後に Caution 再評価。プロパティ追加時の更新漏れを防ぐ回帰テストを同梱\n\n[2026-10-23 再調査・再現結果]\n・ユーザーの操作順 (フォルダ選択→チェック) では (1) のタイマー起動バグは該当しない (潜在バグとしては残る)。\n・scratchpad に再現ハーネスを作成 (実 ViewModel + 実 MainWindow + DI 構成をそのまま使用)。\n  - フォルダが一括で出現するケース: 30 秒後の tick で正常に追加される → ローカル一括コピーでは再現しない。\n  - log_uploader 相当の段階到着 (evidence/auto_capture だけ先に存在 → 後から残りが揃う) で再現:\n    tick1: 中身空の行が追加 (実名不明 / Win・Office 未取得 / 欠損警告だらけの赤行)\n    tick2: 空行は更新されず残り、さらに同じ PC の正しい行が別行として追加 (重複)\n    手動読み込み: 正しく 2 行\n・原因: log_uploader は logs/ → evidence/ の順に robocopy し、evidence 配下は名前順のため auto_capture (スクショで数MB〜数十MB) が先、pc_information が最後に届く。コピー途中を tick が拾うと manifest なしの PC として登録され、(2) の更新漏れで以後埋まらない。マージキーに SerialNumber を含むため、フォルダ名 SN (例 'VMware-56-4d-...') と manifest の正規 SN ('VMware-56 4d ...') が違う PC は別 PC 扱いで重複追加。\n・ネットワーク共有でコピーが遅いほどコピー途中を拾う確率が上がる → 環境差に見える。\n\n[修正方針案 改訂 (ユーザー合意待ち)]\nB (本命): マージキーを PC フォルダパス (PcRootDirectoryPath) に変更 + 既存 PC の全項目を更新 (UpdateFrom) + 更新後に Caution 再評価。更新漏れ防止の回帰テスト同梱。\nA: 自動更新の実行結果 (時刻・エラー) をステータス表示 + タイマー起動条件修正 + 新規行を名前順の位置に挿入。\n\n[2026-10-23 ユーザー回答] 行自体が出てこない。中途半端な行は見たことがない → 段階到着の再現ケースはユーザー環境の原因ではない (別バグとしては有効)。\n残る疑い: ユーザー環境でのみ発生する例外を RefreshEvidenceAsync の catch が握りつぶしている可能性。ステータス欄にエラー表示を入れれば特定可能。\nユーザー判断: 急ぎではない → 保留。",
+      "status": "保留",
+      "createdAt": "2026-10-23T13:46:48+09:00",
+      "updatedAt": "2026-10-23T14:09:52+09:00"
+    },
+    {
+      "id": "t-0003",
+      "title": "計画PC名の重複を検知して気づけるようにする",
+      "content": "誤って同じホスト名を設定した2台のエビデンスが届いた場合、現状は別々の2行で表示されるだけで、重複に気づけない。気づけるようにしたい。",
+      "claudeNote": "[2026-10-23 現状調査]\n・一覧: フォルダ名 (日時+シリアル) 単位で区別するため 2 行で表示。重複の警告は無し。\n・hostlist 突合: PC名で hostlist を引くため 2 台とも同じ行と照合 → 両方「一致」になり要確認にもならない (hostlist に SN/MAC 列が無く判別不能)。\n・HostlistService.Load は NewPCName 重複行を黙って上書き (hostlist 自体の重複も気づけない)。\n・Excel: PC別ファイル名は衝突時に SN 先頭6文字を付与。納品フォルダは PC名_SN_日時 で分離。ただし SN 取得不能時はフォルダ名が PC名のみ → 同名2台で上書き混在 (EvidenceCollectorService.cs:57-61)。\n・自動更新は EvaluateCaution を呼ばないため、自動更新で届いた PC には要確認判定が付かない。\n\n[実装計画案]\nA: 検出ロジック (Service + Interface) + PcEvidence に重複情報プロパティ + xUnit テスト\nB: ViewModel 組込み (Caution メッセージ / 読み込み時ステータス表示 / 自動更新後の再評価)\nC: View (計画PC名セル強調) + 追加通知 (ユーザー選択による)\n\n[2026-10-23 ユーザー決定] 同一端末の再実行 (同シリアル) は通知しない / 追加通知は「納品データ出力前の確認ダイアログ」のみ。\n\n[2026-10-23 フェーズA 完了]\n・PcEvidence.DuplicatePcNameMachineCount / HasDuplicatePcName を追加\n・IPcNameDuplicateService / PcNameDuplicateService (Evaluate: 判定 + プロパティ更新 + グループ返却)\n  - PC名は大文字小文字無視 / シリアルは英数字のみ大文字で比較 (フォルダ名由来と manifest 由来の表記ゆれ吸収) / \"UNKNOWN\" と空はシリアル不明 = 別端末扱い\n・EvidenceCollectorService: 納品フォルダ名を PC名_SN_日時 (SN不明時 PC名_日時)、衝突時 _2,_3 付与\n・テスト追加 13 件 (PcNameDuplicateServiceTests 10 / EvidenceCollectorServiceTests 3)。全 116 件成功。\n・DI 登録と ViewModel 組込みはフェーズB で実施。\n\n[次] フェーズB: DI 登録 / EvaluateCautionsForAllPcs で重複判定 + Caution メッセージ / 読み込み完了時ステータス表示 / 自動更新で追加時の再評価 / 出力前確認ダイアログ\n\n[2026-10-23 フェーズB 完了]\n・App.xaml.cs に IPcNameDuplicateService を DI 登録、MainWindowViewModel に注入\n・EvaluateCautionsForAllPcs: 先に重複判定 → 各 PC の Caution に「PC名重複(別端末 N台)」(先頭) を追加。重複グループを返す\n・読み込み完了 / 自動更新 (新規PC追加時) のステータス欄に「⚠ PC名重複: PC-01 (別端末 2 台)」(最大3件 + ほかN件)\n・自動更新で新規 PC 追加時に要確認判定を全体再評価するよう修正 (従来は未評価)\n・納品データ出力: フォルダ選択前に重複確認ダイアログ (既定=いいえ)。いいえで中止しステータスに表示\n・検証: 実 MainWindow + サンプル evidence でハーネス実行 → NEW-PC-01 (別端末3台: VMware 再実行3回は1台扱い) を検出 / 自動更新で2台目到着時に既存行も含め要確認化 / 確認ダイアログ表示→いいえで中止 を確認。全 116 テスト成功。\n・気づき: 欠損警告 (赤) がある行は赤が優先され黄色が見えない → フェーズC の計画PC名セル強調が必要。\n\n[次] フェーズC: 計画PC名セルを赤字 + ⚠ (HasDuplicatePcName)\n\n[2026-10-23 フェーズC 完了]\n・MainWindow.xaml 計画PC名列: HasDuplicatePcName 時に PC 名を赤字 + 塗りつぶしバッジ「⚠ 重複」(#C62828 / 白字)。ツールチップに別端末台数。\n  行の赤 (欠損) / 黄 (要確認) ハイライト上でも埋もれないことをスクリーンショットで確認。\n・列幅 110→150。StackPanel を Top 揃えにし、複数行の行でもバッジ/📝 を PC 名の高さに揃えた。\n・全 116 テスト成功。未コミット・未パブリッシュ。ユーザー確認待ち。\n\n[2026-10-23 リリース]\n・コミット (main, 未 push): 8e1a0a2 pc_name_duplicate_detection_and_delivery_folder_collision_fix / 63c07ee bump_version_to_v3_9_0\n・E:\\publish_fabriq_evidence_manager に v3.9.0 をパブリッシュ (ProductVersion 3.9.0+63c07ee)。全 116 テスト成功。",
+      "status": "完了",
+      "createdAt": "2026-10-23T14:13:54+09:00",
+      "updatedAt": "2026-10-23T15:52:09+09:00"
+    }
+  ]
+}
