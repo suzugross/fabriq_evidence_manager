@@ -255,17 +255,44 @@
 
                     <DataGrid.Columns>
                         <!-- 計画 PC 名 (hostlist で選択された名前 = manifest.selectedNewPcName)
+                             + 別端末と名前が重複していれば「⚠ 重複」バッジ (HasDuplicatePcName=true 時)
+                               行の赤/黄ハイライトに埋もれないよう、塗りつぶしのバッジで示す
                              + メモ有り PC には末尾に 📝 アイコン (HasMemo=true 時) -->
                         <DataGridTemplateColumn Header="計画 PC 名"
                                                 MinWidth="100"
-                                                Width="110">
+                                                Width="150">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
+                                    <!-- Top: 複数行の行 (BitLocker 2 ドライブ等) でもバッジ/アイコンを PC 名の高さに揃える -->
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
                                         <TextBlock Text="{Binding PcName}"
                                                    FontWeight="SemiBold"
-                                                   Foreground="#222222"
-                                                   Padding="4,2"/>
+                                                   Padding="4,2">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#222222"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasDuplicatePcName}" Value="True">
+                                                            <Setter Property="Foreground" Value="#C62828"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <Border Background="#C62828"
+                                                CornerRadius="2"
+                                                Padding="4,0"
+                                                Margin="2,0,0,0"
+                                                VerticalAlignment="Center"
+                                                Visibility="{Binding HasDuplicatePcName, Converter={StaticResource BoolToVis}}">
+                                            <Border.ToolTip>
+                                                <TextBlock Text="{Binding DuplicatePcNameMachineCount, StringFormat=同じ計画PC名の別端末が {0} 台あります (誤って同じホスト名を設定した可能性)}"/>
+                                            </Border.ToolTip>
+                                            <TextBlock Text="⚠ 重複"
+                                                       FontSize="10"
+                                                       FontWeight="Bold"
+                                                       Foreground="White"/>
+                                        </Border>
                                         <TextBlock Text=" 📝"
                                                    FontSize="11"
                                                    Foreground="#1565C0"

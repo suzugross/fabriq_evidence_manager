@@ -35,6 +35,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IChecklistParserService _checklistParserService;
     private readonly IBaselineService _baselineService;
     private readonly IPcMemoService _memoService;
+    private readonly IPcNameDuplicateService _pcNameDuplicateService;
     private readonly DispatcherTimer _autoReloadTimer;
     private bool _isRefreshing;
 
@@ -53,7 +54,8 @@ public partial class MainWindowViewModel : ObservableObject
         IEvidenceVerificationService verificationService,
         IChecklistParserService checklistParserService,
         IBaselineService baselineService,
-        IPcMemoService memoService)
+        IPcMemoService memoService,
+        IPcNameDuplicateService pcNameDuplicateService)
     {
         _nestedDiscovery = nestedDiscovery;
         _parserService = parserService;
@@ -64,6 +66,7 @@ public partial class MainWindowViewModel : ObservableObject
         _checklistParserService = checklistParserService;
         _baselineService = baselineService;
         _memoService = memoService;
+        _pcNameDuplicateService = pcNameDuplicateService;
 
         TargetPCsView = CollectionViewSource.GetDefaultView(TargetPCs);
         TargetPCsView.Filter = FilterPcEvidence;
@@ -110,19 +113,44 @@ public partial class MainWindowViewModel : ObservableObject
 
     /// <summary>
     /// 全PCの Caution (要確認) 判定を実行する。
-    /// hostlist不一致 / チェックリストNG / ベースラインNG を検出し、
+    /// PC名重複 / hostlist不一致 / チェックリストNG / ベースラインNG を検出し、
     /// PcEvidence.HasCaution / CautionMessage を更新する。
     /// </summary>
-    private void EvaluateCautionsForAllPcs()
+    /// <returns>計画 PC 名の重複グループ (ステータス表示用。重複なしなら空)</returns>
+    private IReadOnlyList<PcNameDuplicateGroup> EvaluateCautionsForAllPcs()
     {
+        // PC名重複は PC 同士の突き合わせが必要なため、PC 単位の判定より先に全体で判定する
+        var duplicateGroups = _pcNameDuplicateService.Evaluate(TargetPCs);
+
         foreach (var pc in TargetPCs)
             EvaluateCaution(pc);
+
+        return duplicateGroups;
+    }
+
+    /// <summary>
+    /// ステータス欄に付け足す PC名重複のサマリ (重複なしなら空文字)。
+    /// 例: "  ⚠ PC名重複: PC-01 (別端末 2 台)、PC-05 (別端末 2 台)"
+    /// </summary>
+    private static string FormatDuplicateStatus(IReadOnlyList<PcNameDuplicateGroup> groups)
+    {
+        if (groups.Count == 0) return string.Empty;
+
+        const int maxShown = 3;
+        var shown = string.Join("、", groups.Take(maxShown).Select(g => g.Summary));
+        var more = groups.Count > maxShown ? $" ほか {groups.Count - maxShown} 件" : string.Empty;
+        return $"  ⚠ PC名重複: {shown}{more}";
     }
 
     /// <summary>1台分の Caution 判定。</summary>
     private void EvaluateCaution(PcEvidence pc)
     {
         var cautions = new List<string>();
+
+        // 計画 PC 名の重複 (誤って同じホスト名を別端末に設定した可能性)。
+        // hostlist 突合は PC 名で引くため 2 台とも「一致」になり、ここでしか検知できない。
+        if (pc.HasDuplicatePcName)
+            cautions.Add($"PC名重複(別端末 {pc.DuplicatePcNameMachineCount}台)");
 
         // PC名不一致 (rename が効いていない可能性: 計画 != 実)
         if (pc.HasPcNameMismatch)
@@ -521,9 +549,10 @@ public partial class MainWindowViewModel : ObservableObject
             }
             else
             {
-                // Caution 判定 (hostlist/baseline/checklist が読込済みの場合)
-                EvaluateCautionsForAllPcs();
-                StatusMessage = $"読み込み完了: {TargetPCs.Count} 台のPCを検出しました。";
+                // Caution 判定 (PC名重複 + hostlist/baseline/checklist が読込済みの場合)
+                var duplicateGroups = EvaluateCautionsForAllPcs();
+                StatusMessage = $"読み込み完了: {TargetPCs.Count} 台のPCを検出しました。"
+                    + FormatDuplicateStatus(duplicateGroups);
             }
         }
         catch (OperationCanceledException)
@@ -556,6 +585,13 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanExecuteAction))]
     private async Task ExportDeliveryAsync(CancellationToken cancellationToken)
     {
+        // PC名重複があるまま納品しないよう、出力先を選ぶ前に確認する
+        if (!ConfirmExportDespiteDuplicates())
+        {
+            StatusMessage = "出力を中止しました (PC名重複あり)。";
+            return;
+        }
+
         var dialog = new OpenFolderDialog
         {
             Title = "納品データの出力先フォルダを選択",
@@ -635,6 +671,33 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     private bool CanExecuteAction() => !IsLoading && TargetPCs.Count > 0;
+
+    /// <summary>
+    /// 計画 PC 名の重複がある場合に、納品データを出力してよいか確認する。
+    /// 重複なし、またはユーザーが「はい」を選んだ場合に true。既定ボタンは「いいえ」。
+    /// </summary>
+    private bool ConfirmExportDespiteDuplicates()
+    {
+        var groups = _pcNameDuplicateService.Evaluate(TargetPCs);
+        if (groups.Count == 0) return true;
+
+        const int maxShown = 10;
+        var lines = string.Join("\n", groups.Take(maxShown).Select(g => $"  ・{g.Summary}"));
+        if (groups.Count > maxShown)
+            lines += $"\n  ・ほか {groups.Count - maxShown} 件";
+
+        var result = MessageBox.Show(
+            "計画PC名が重複している端末があります。\n"
+            + "誤って同じホスト名を設定した可能性があります。\n\n"
+            + $"{lines}\n\n"
+            + "このまま納品データを出力しますか？",
+            "PC名重複の確認",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        return result == MessageBoxResult.Yes;
+    }
 
     /// <summary>次の画像へ進む。</summary>
     [RelayCommand(CanExecute = nameof(CanGoNext))]
@@ -854,8 +917,11 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (addedCount > 0)
             {
+                // 新規 PC は要確認判定がまだ。PC名重複は既存 PC との突き合わせになるため全体を再評価する
+                var duplicateGroups = EvaluateCautionsForAllPcs();
                 OnPropertyChanged(nameof(DisplayCountText));
-                StatusMessage = $"自動更新: {addedCount} 台の新規PCを検出しました。(合計 {TargetPCs.Count} 台)";
+                StatusMessage = $"自動更新: {addedCount} 台の新規PCを検出しました。(合計 {TargetPCs.Count} 台)"
+                    + FormatDuplicateStatus(duplicateGroups);
             }
         }
         catch

@@ -50,6 +50,7 @@ public partial class App : Application
         services.AddSingleton<IBaselineComparator, LicenseComparator>();
         services.AddSingleton<IBaselineComparator, DomainStatusComparator>();
         services.AddSingleton<IPcMemoService, PcMemoService>();
+        services.AddSingleton<IPcNameDuplicateService, PcNameDuplicateService>();
         services.AddSingleton<IBaselineService, BaselineService>();
         services.AddTransient<IEvidenceCollectorService, EvidenceCollectorService>();
         services.AddTransient<IExcelExportService, ExcelExportService>();

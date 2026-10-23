@@ -415,6 +415,20 @@ public sealed partial class PcEvidence : ObservableObject
     [ObservableProperty]
     private string _cautionMessage = string.Empty;
 
+    // ---- 計画 PC 名の重複検知 ----
+
+    /// <summary>
+    /// 同じ計画 PC 名を持つ別端末の台数 (自分を含む)。0 = 重複なし。
+    /// 同一端末 (同じシリアル) の再実行は 1 台として数える。
+    /// IPcNameDuplicateService.Evaluate が読み込み済み PC 全体を見て設定する。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDuplicatePcName))]
+    private int _duplicatePcNameMachineCount;
+
+    /// <summary>計画 PC 名が別端末と重複している (誤って同じホスト名を設定した可能性)。</summary>
+    public bool HasDuplicatePcName => DuplicatePcNameMachineCount >= 2;
+
     // ---- DataGrid 表示用の算出プロパティ ----
 
     /// <summary>イーサネットのMACアドレス (未検出時は空文字列)</summary>

@@ -18,7 +18,7 @@ namespace FabriqEvidenceManager.Services;
 ///
 /// 出力構造:
 ///   {outputRoot}/
-///     {pcName}_{serial}/
+///     {pcName}_{serial}_{collectionDate}/   ← シリアル不明時は {pcName}_{collectionDate}
 ///       pc_information/    ← ディレクトリ丸ごとコピー
 ///       auto_capture/      ← ディレクトリ丸ごとコピー
 ///       bitlocker/         ← ディレクトリ丸ごとコピー
@@ -47,6 +47,9 @@ public sealed class EvidenceCollectorService : IEvidenceCollectorService
 
         var errors = new List<string>();
 
+        // 今回の出力で使用済みのフォルダ名 (同名 PC のファイルが同じフォルダに混ざるのを防ぐ)
+        var usedFolderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         await Task.Run(() =>
         {
             for (var i = 0; i < pcEvidences.Count; i++)
@@ -54,11 +57,7 @@ public sealed class EvidenceCollectorService : IEvidenceCollectorService
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var pc = pcEvidences[i];
-                var folderName = string.IsNullOrEmpty(pc.SerialNumber)
-                    ? pc.PcName
-                    : string.IsNullOrEmpty(pc.CollectionDate)
-                        ? $"{pc.PcName}_{pc.SerialNumber}"
-                        : $"{pc.PcName}_{pc.SerialNumber}_{pc.CollectionDate}";
+                var folderName = GetPcFolderName(pc, usedFolderNames);
                 var pcDir = Path.Combine(outputDirectoryPath, folderName);
                 Directory.CreateDirectory(pcDir);
 
@@ -112,6 +111,26 @@ public sealed class EvidenceCollectorService : IEvidenceCollectorService
         }, cancellationToken);
 
         return errors;
+    }
+
+    /// <summary>
+    /// PC 単位の出力フォルダ名 "{PC名}_{シリアル}_{収集日時}" を返す (空の要素は省く)。
+    /// シリアル不明でも収集日時で区別し、それでも衝突する場合は "_2", "_3" を付ける。
+    /// (以前はシリアル不明時に "{PC名}" のみとなり、同名 PC が同じフォルダに上書き混在していた)
+    /// </summary>
+    private static string GetPcFolderName(PcEvidence pc, HashSet<string> usedFolderNames)
+    {
+        var baseName = string.Join("_",
+            new[] { pc.PcName, pc.SerialNumber, pc.CollectionDate }
+                .Where(s => !string.IsNullOrEmpty(s)));
+
+        if (usedFolderNames.Add(baseName)) return baseName;
+
+        for (var counter = 2; ; counter++)
+        {
+            var name = $"{baseName}_{counter}";
+            if (usedFolderNames.Add(name)) return name;
+        }
     }
 
     private const string ManifestFileName = "manifest_sha256.txt";
